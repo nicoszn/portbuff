@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: #070a17;
+    --color-surface: #0d1028;
+    --color-surface-2: #131836;
+    --color-border: rgba(255, 215, 120, 0.12);
+    --color-border-strong: rgba(255, 215, 120, 0.22);
+    --color-text: #f5f3e8;
+    --color-text-muted: #a8a4b8;
+    --color-accent: #e0a523;
+    --color-accent-soft: rgba(224, 165, 35, 0.12);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-navy-950 text-[var(--color-text)] antialiased;
+  }
+
+  ::selection {
+    @apply bg-gold-400/30 text-gold-50;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-navy-950;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-navy-700/80 rounded-full;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-navy-900/70 border border-[var(--color-border)] rounded-2xl;
+  }
+
+  .card-soft {
+    @apply bg-navy-800/40 border border-[var(--color-border)]/60 rounded-xl;
+  }
+
+  .input-field {
+    @apply w-full bg-navy-950/70 border border-[var(--color-border)] rounded-xl px-4 py-3 text-sm text-[var(--color-text)] placeholder:text-navy-400/70 focus:outline-none focus:ring-2 focus:ring-gold-400/50 focus:border-gold-400/70 transition;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-navy-950 transition shadow-[0_10px_30px_-10px_rgba(224,165,35,0.45)] hover:bg-gold-300 hover:shadow-[0_16px_40px_-10px_rgba(224,165,35,0.6)];
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold border border-[var(--color-border-strong)] text-[var(--color-text)] transition hover:border-gold-400/70 hover:bg-navy-800/50 hover:text-gold-300;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm text-navy-300 transition hover:text-gold-300 hover:bg-navy-800/50;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full border border-gold-400/40 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gold-300;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-gold-200 via-gold-400 to-amber-400 bg-clip-text text-transparent;
+  }
+
+  .glass {
+    @apply bg-navy-900/35 backdrop-blur-xl border border-[var(--color-border)] shadow-xl;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
