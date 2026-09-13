@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/stores/useStore";
 import Navbar from "@/components/landing/Navbar";
 import ChatPopup from "@/components/user/ChatPopup";
 import { motion, AnimatePresence } from "framer-motion";
+import { MessageCircle } from "lucide-react";
 
 const layoutMotion = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: 8 },
   transition: { duration: 0.22 },
 };
 
@@ -24,13 +23,12 @@ export default function UserLayout({
   const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
-  const { currentUser, logout } = useStore();
+  const { currentUser } = useStore();
   const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (!currentUser) {
-      const dest = new URLSearchParams(pathname + window.location.search).get("returnTo") ?? "/auth";
-      router.replace("/auth?returnTo=" + encodeURIComponent(dest || "/dashboard"));
+      router.replace("/auth?returnTo=" + encodeURIComponent(pathname || "/dashboard"));
     }
   }, [currentUser, router, pathname]);
 
@@ -52,35 +50,41 @@ export default function UserLayout({
   }
 
   return (
-    <div className="min-h-screen bg-navy-950 px-5 py-8">
+    <div className="min-h-screen bg-navy-950">
       <Navbar />
-      <main className="mx-auto max-w-7xl">
+      <main className="mx-auto max-w-7xl px-5 py-8 pt-28">
         <motion.div
           variants={layoutMotion}
           initial="initial"
           animate="animate"
-          className="mb-10"
         >
           {children}
         </motion.div>
+        <div className="h-20" aria-hidden />
       </main>
-      <ChatPopup onClose={() => setChatOpen(false)} />
-      <button
-        onClick={() => setChatOpen(true)}
-        className="fixed right-5 bottom-5 z-40 rounded-full bg-gradient-to-br shadow-[0_10px_30px_-10px_rgba(224,165,35,0.6)] p-3 transition hover:scale-[1.04] sm:right-6 sm:bottom-6"
-        aria-label={t("nav.chat")}
-      >
-        <svg
-          className="h-6 w-6 text-navy-950"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          aria-hidden
-        >
-          <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM8 12h8M12 8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        </svg>
-      </button>
+
+      {/* Floating chat button */}
+      <AnimatePresence>
+        {!chatOpen && (
+          <motion.button
+            key="chat-fab"
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.6 }}
+            transition={{ type: "spring", damping: 20, stiffness: 260 }}
+            onClick={() => setChatOpen(true)}
+            className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-gold-300 to-amber-500 text-navy-950 shadow-[0_10px_30px_-8px_rgba(224,165,35,0.6)] transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-gold-400 focus-visible:outline-offset-2"
+            aria-label={t("nav.chat")}
+          >
+            <MessageCircle className="h-6 w-6" aria-hidden />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Chat popup */}
+      <AnimatePresence>
+        {chatOpen && <ChatPopup onClose={() => setChatOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 }
-
-import { useState } from "react";
