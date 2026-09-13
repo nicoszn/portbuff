@@ -3,16 +3,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/stores/useStore";
-import { I18nextProvider, useLang, useSetLang, useAvailableLangs } from "@/lib/i18n";
-import { motion } from "framer-motion";
+import { useLang, useSetLang, useAvailableLangs } from "@/lib/i18n";
 import { Save, AlertCircle, Check, Globe } from "lucide-react";
 
 export default function SettingsPage() {
-  return (
-    <I18nextProvider>
-      <SettingsContent />
-    </I18nextProvider>
-  );
+  return <SettingsContent />;
 }
 
 function SettingsContent() {

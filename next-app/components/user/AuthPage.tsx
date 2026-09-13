@@ -244,8 +244,13 @@ export default function AuthPage() {
             <button
               type="button"
               onClick={() => {
-                setMode("signup");
                 setError("");
+                setSuccess(false);
+                router.replace(
+                  mode === "login"
+                    ? `/auth?mode=signup${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`
+                    : `/auth${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`
+                );
               }}
               className="text-sm font-medium text-gold-400 transition hover:text-gold-300 focus-visible:outline-2 focus-visible:outline-gold-400 focus-visible:outline-offset-2"
             >
@@ -274,8 +279,4 @@ export default function AuthPage() {
       </motion.div>
     </div>
   );
-}
-
-function setMode(_mode: "login" | "signup") {
-  // placeholder: mode is derived from searchParams in real usage
 }

@@ -1,4 +1,4 @@
-import { User, Plan, Investment, Transaction, ChatMessage, DepositAddress, Language } from '../types';
+import { User, Plan, Investment, Transaction, ChatMessage, DepositAddress, Language } from '@/lib/types';
 
 export const mockUsers: User[] = [
   {

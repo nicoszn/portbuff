@@ -4,8 +4,33 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/stores/useStore";
 import AdminLayout from "@/components/layout/AdminLayout";
+import { formatCurrency } from "@/lib/utils/helpers";
 import { motion } from "framer-motion";
-import { Plus, Edit2, Trash2, AlertCircle, Check, X } from "lucide-react";
+import { Plus, Edit2, Trash2, AlertCircle, Check } from "lucide-react";
+
+type PlanForm = {
+  id: string;
+  name: string;
+  minCapital: number;
+  maxCapital: number;
+  dailyPercentage: number;
+  days: number;
+  description: string;
+  color: string;
+  icon: string;
+};
+
+const emptyForm: PlanForm = {
+  id: "",
+  name: "",
+  minCapital: 100,
+  maxCapital: 1000,
+  dailyPercentage: 2.5,
+  days: 4,
+  description: "",
+  color: "from-blue-500 to-cyan-400",
+  icon: "🚀",
+};
 
 export default function AdminPlansPage() {
   return (
@@ -19,98 +44,66 @@ function AdminPlansContent() {
   const { t } = useTranslation();
   const { plans, addPlan, updatePlan, deletePlan } = useStore();
 
-  const [activeTab, setActiveTab] = useState<"list" | "create" | "edit">("list");
-  const [form, setForm] = useState({
-    id: "",
-    name: "",
-    minInvestment: 500,
-    maxInvestment: 100000,
-    dailyReturn: 1,
-    durationDays: 15,
-    sector: "other",
-    description: "",
-  });
-  const [message, setMessage] = useState<{type: "success" | "error", text: string} | null>(null);
+  const [mode, setMode] = useState<"list" | "form">("list");
+  const [form, setForm] = useState<PlanForm>(emptyForm);
+  const [isEditing, setIsEditing] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const editPlan = (planId: string) => {
+  const notify = (type: "success" | "error", text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const openCreate = () => {
+    setForm(emptyForm);
+    setIsEditing(false);
+    setMode("form");
+  };
+
+  const openEdit = (planId: string) => {
     const plan = plans.find((p) => p.id === planId);
     if (!plan) return;
-    setForm({
-      id: plan.id,
-      name: plan.name ?? plan.id,
-      minInvestment: plan.minInvestment ?? 500,
-      maxInvestment: plan.maxInvestment ?? 100000,
-      dailyReturn: plan.dailyReturn ?? 1,
-      durationDays: plan.durationDays ?? 15,
-      sector: plan.sector ?? "other",
-      description: plan.description ?? "",
-    });
-    setActiveTab("edit");
+    setForm({ ...plan });
+    setIsEditing(true);
+    setMode("form");
   };
 
   const savePlan = () => {
     if (!form.name.trim()) {
-      setMessage({ type: "error", text: "Plan name is required" });
+      notify("error", "Plan name is required");
       return;
     }
-    if (form.minInvestment <= 0) {
-      setMessage({ type: "error", text: "Minimum investment must be greater than 0" });
+    if (form.minCapital <= 0) {
+      notify("error", "Minimum capital must be greater than 0");
       return;
     }
-    if (form.maxInvestment <= form.minInvestment) {
-      setMessage({ type: "error", text: "Maximum investment must be greater than minimum" });
+    if (form.maxCapital <= form.minCapital) {
+      notify("error", "Maximum capital must be greater than minimum");
       return;
     }
-    if (form.dailyReturn < 0) {
-      setMessage({ type: "error", text: "Daily return cannot be negative" });
+    if (form.dailyPercentage < 0) {
+      notify("error", "Daily percentage cannot be negative");
       return;
     }
-    if (activeTab === "create") {
-      if (plans.find((p) => p.name === form.name)) {
-        setMessage({ type: "error", text: "A plan with this name already exists" });
-        return;
-      }
-      addPlan({
-        id: `plan-${Date.now()}`,
-        name: form.name,
-        minInvestment: form.minInvestment,
-        maxInvestment: form.maxInvestment,
-        dailyReturn: form.dailyReturn,
-        durationDays: form.durationDays,
-        sector: form.sector,
-        description: form.description,
-      });
-      setMessage({ type: "success", text: `Plan "${form.name}" created` });
-      setForm({
-        id: "",
-        name: "",
-        minInvestment: 500,
-        maxInvestment: 100000,
-        dailyReturn: 1,
-        durationDays: 15,
-        sector: "other",
-        description: "",
-      });
+    if (form.days <= 0) {
+      notify("error", "Duration must be at least 1 day");
+      return;
+    }
+
+    if (isEditing) {
+      updatePlan(form.id, { ...form });
+      notify("success", `Plan "${form.name}" updated`);
     } else {
-      updatePlan(form.id, {
-        name: form.name,
-        minInvestment: form.minInvestment,
-        maxInvestment: form.maxInvestment,
-        dailyReturn: form.dailyReturn,
-        durationDays: form.durationDays,
-        sector: form.sector,
-        description: form.description,
-      });
-      setMessage({ type: "success", text: `Plan "${form.name}" updated` });
+      addPlan({ ...form, id: `plan-${Date.now()}` });
+      notify("success", `Plan "${form.name}" created`);
     }
-    setTimeout(() => setMessage(null), 3000);
+    setMode("list");
   };
 
   const handleDelete = (planId: string, name: string) => {
     if (!confirm(`Delete plan "${name}"?`)) return;
     deletePlan(planId);
-    setMessage({ type: "success", text: `Plan "${name}" deleted` });
-    setTimeout(() => setMessage(null), 3000);
+    notify("success", `Plan "${name}" deleted`);
   };
 
   return (
@@ -124,22 +117,7 @@ function AdminPlansContent() {
             {t("admin.managePlans")}
           </p>
         </div>
-        <button
-          onClick={() => {
-            setActiveTab("create");
-            setForm({
-              id: "",
-              name: "",
-              minInvestment: 500,
-              maxInvestment: 100000,
-              dailyReturn: 1,
-              durationDays: 15,
-              sector: "other",
-              description: "",
-            });
-          }}
-          className="btn-primary"
-        >
+        <button onClick={openCreate} className="btn-primary">
           <Plus className="h-4 w-4" aria-hidden />
           {t("admin.createPlan")}
         </button>
@@ -162,85 +140,84 @@ function AdminPlansContent() {
         </div>
       )}
 
-      {activeTab === "create" || activeTab === "edit" ? (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card p-6"
-        >
+      {mode === "form" ? (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card p-6">
           <h2 className="mb-5 text-lg font-semibold text-gold-200">
-            {activeTab === "create" ? t("admin.createPlan") : t("admin.editPlan")}
+            {isEditing ? t("admin.editPlan") : t("admin.createPlan")}
           </h2>
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-navy-300">Plan Name</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="input-field"
-                placeholder="Growth Plus"
-              />
+            <div className="grid gap-4 sm:grid-cols-4">
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-medium text-navy-300">Plan Name</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  className="input-field"
+                  placeholder="Professional"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-navy-300">Icon (emoji)</label>
+                <input
+                  type="text"
+                  value={form.icon}
+                  onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
+                  className="input-field"
+                  placeholder="💎"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-navy-300">Gradient</label>
+                <select
+                  value={form.color}
+                  onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                  className="input-field"
+                >
+                  <option value="from-blue-500 to-cyan-400">Blue → Cyan</option>
+                  <option value="from-purple-500 to-pink-400">Purple → Pink</option>
+                  <option value="from-amber-500 to-orange-400">Amber → Orange</option>
+                  <option value="from-emerald-500 to-teal-400">Emerald → Teal</option>
+                </select>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-4 sm:grid-cols-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">Min Investment</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 h-9 -translate-y-1/2 w-9 items-center justify-center rounded-l-lg bg-navy-800 border border-r-0 border-[rgba(255,215,120,0.12)] text-sm text-navy-300">$</span>
-                  <input
-                    type="number"
-                    value={form.minInvestment}
-                    onChange={(e) => setForm((f) => ({ ...f, minInvestment: Number(e.target.value) || 0 }))}
-                    className="input-field pl-8"
-                  />
-                </div>
+                <label className="text-xs font-medium text-navy-300">{t("plans.minCapital")}</label>
+                <input
+                  type="number"
+                  value={form.minCapital}
+                  onChange={(e) => setForm((f) => ({ ...f, minCapital: Number(e.target.value) || 0 }))}
+                  className="input-field"
+                />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">Max Investment</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 h-9 -translate-y-1/2 w-9 items-center justify-center rounded-l-lg bg-navy-800 border border-r-0 border-[rgba(255,215,120,0.12)] text-sm text-navy-300">$</span>
-                  <input
-                    type="number"
-                    value={form.maxInvestment}
-                    onChange={(e) => setForm((f) => ({ ...f, maxInvestment: Number(e.target.value) || 0 }))}
-                    className="input-field pl-8"
-                  />
-                </div>
+                <label className="text-xs font-medium text-navy-300">{t("plans.maxCapital")}</label>
+                <input
+                  type="number"
+                  value={form.maxCapital}
+                  onChange={(e) => setForm((f) => ({ ...f, maxCapital: Number(e.target.value) || 0 }))}
+                  className="input-field"
+                />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">Daily Return (%)</label>
+                <label className="text-xs font-medium text-navy-300">{t("plans.dailyReturn")} (%)</label>
                 <input
                   type="number"
                   step="0.1"
-                  value={form.dailyReturn}
-                  onChange={(e) => setForm((f) => ({ ...f, dailyReturn: Number(e.target.value) || 0 }))}
+                  value={form.dailyPercentage}
+                  onChange={(e) => setForm((f) => ({ ...f, dailyPercentage: Number(e.target.value) || 0 }))}
                   className="input-field"
                 />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">Duration (days)</label>
+                <label className="text-xs font-medium text-navy-300">{t("plans.duration")} ({t("plans.days")})</label>
                 <input
                   type="number"
-                  value={form.durationDays}
-                  onChange={(e) => setForm((f) => ({ ...f, durationDays: Number(e.target.value) || 1 }))}
+                  value={form.days}
+                  onChange={(e) => setForm((f) => ({ ...f, days: Number(e.target.value) || 1 }))}
                   className="input-field"
                 />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">Sector</label>
-                <select
-                  value={form.sector}
-                  onChange={(e) => setForm((f) => ({ ...f, sector: e.target.value }))}
-                  className="input-field"
-                >
-                  {["agriculture", "energy", "minerals", "realestate", "technology", "infrastructure", "other"].map((s) => (
-                    <option key={s} value={s}>
-                      {s.charAt(0).toUpperCase() + s.slice(1).replace(/([A-Z])/g, " $1")}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
             <div className="space-y-1.5">
@@ -248,19 +225,16 @@ function AdminPlansContent() {
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                className="input-field resize-y min-h-[80px]"
+                className="input-field min-h-[80px] resize-y"
                 placeholder="Brief description of this plan..."
               />
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setActiveTab("list")}
-                className="btn-outline"
-              >
+              <button onClick={() => setMode("list")} className="btn-outline">
                 {t("common.cancel")}
               </button>
               <button onClick={savePlan} className="btn-primary">
-                {activeTab === "create" ? t("admin.createPlan") : t("admin.editPlan")}
+                {isEditing ? t("admin.editPlan") : t("admin.createPlan")}
               </button>
             </div>
           </div>
@@ -282,34 +256,28 @@ function AdminPlansContent() {
               >
                 <div>
                   <div className="flex items-center gap-3">
-                    <div className="text-lg font-bold text-gold-200">
-                      ${plan.minInvestment?.toLocaleString()}
-                    </div>
-                    {plan.id === "growth" && (
-                      <span className="badge text-xs">{t("landing.planGrowthHighlight")}</span>
-                    )}
+                    <span className="text-xl">{plan.icon}</span>
+                    <span className="text-lg font-bold text-gold-200">{plan.name}</span>
                   </div>
-                  <div className="mt-1 text-sm text-navy-200">
-                    {plan.name || plan.id}
-                    {plan.description ? ` — ${plan.description}` : ""}
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-3 text-xs text-navy-400">
-                    <span>☀ {plan.dailyReturn}% daily</span>
-                    <span>📅 {plan.durationDays} days</span>
-                    <span>📈 max ${plan.maxInvestment?.toLocaleString()}</span>
-                    <span>🏷 {plan.sector?.charAt(0).toUpperCase() + plan.sector?.slice(1)}</span>
+                  <div className="mt-1 text-sm text-navy-300">{plan.description}</div>
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-navy-400">
+                    <span>
+                      {formatCurrency(plan.minCapital)} – {formatCurrency(plan.maxCapital)}
+                    </span>
+                    <span>{plan.dailyPercentage}% daily</span>
+                    <span>{plan.days} days</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => editPlan(plan.id)}
+                    onClick={() => openEdit(plan.id)}
                     className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium text-navy-300 transition hover:bg-navy-800/60 hover:text-gold-300"
                   >
                     <Edit2 className="h-3.5 w-3.5" aria-hidden />
                     {t("admin.editPlan")}
                   </button>
                   <button
-                    onClick={() => handleDelete(plan.id, plan.name || plan.id)}
+                    onClick={() => handleDelete(plan.id, plan.name)}
                     className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium text-red-400 transition hover:bg-red-400/10"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />

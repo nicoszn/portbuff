@@ -17,13 +17,14 @@ import {
 } from "recharts";
 import {
   TrendingUp,
-  TrendingDown,
   Wallet,
   PiggyBank,
   Activity,
   DollarSign,
 } from "lucide-react";
 import Link from "next/link";
+import { generateProfitChartData } from "@/lib/data";
+import { formatCurrency } from "@/lib/utils/helpers";
 
 const COLORS = [
   "#e0a523",
@@ -34,24 +35,9 @@ const COLORS = [
   "#f59e0b",
 ];
 
-const COLORS_BY_SECTOR: Record<string, string> = {
-  agriculture: "#34d399",
-  energy: "#fbbf24",
-  minerals: "#f59e0b",
-  realestate: "#60a5fa",
-  technology: "#a78bfa",
-  infrastructure: "#06b6d4",
-};
-
 export default function DashboardPage() {
   const { t } = useTranslation();
-  const {
-    currentUser,
-    investments,
-    transactions,
-    addInvestment,
-    plans,
-  } = useStore();
+  const { currentUser, investments, transactions, plans } = useStore();
 
   const balance = currentUser?.balance ?? 0;
   const invested = currentUser?.totalInvested ?? 0;
@@ -61,38 +47,33 @@ export default function DashboardPage() {
     (i) => i.status === "active"
   ).length;
 
-  const profitChartData =
-    typeof window !== "undefined"
-      ? require("@/lib/data").generateProfitChartData()
-      : [];
+  const profitChartData = generateProfitChartData();
 
-  const portfolioBySector = investments.reduce(
-    (acc, inv) => {
-      const sector =
-        (inv.plan?.sector as string) ?? "other";
-      acc[sector] = (acc[sector] ?? 0) + (inv.amount ?? 0);
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
-  const portfolioChartData = Object.entries(portfolioBySector)
-    .filter(([, amount]) => amount > 0)
-    .map(([sector, amount]) => ({
-      name:
-        sector.charAt(0).toUpperCase() +
-        sector.slice(1).replace(/([A-Z])/g, " $1"),
-      value: amount,
-      color: COLORS_BY_SECTOR[sector] ?? COLORS[0],
-    }));
+  const portfolioChartData = plans
+    .map((plan, index) => {
+      const planInvestments = investments.filter(
+        (inv) => inv.planId === plan.id && inv.status === "active"
+      );
+      const total = planInvestments.reduce((sum, inv) => sum + inv.amount, 0);
+      if (total === 0) return null;
+      return {
+        name: plan.name,
+        value: total,
+        color: COLORS[index % COLORS.length],
+      };
+    })
+    .filter(Boolean) as { name: string; value: number; color: string }[];
 
   const recentTransactions = [...transactions]
     .sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
     .slice(0, 6);
+
+  const activeInvestments = investments.filter(
+    (i) => i.status === "active"
+  );
 
   return (
     <div className="space-y-10">
@@ -112,11 +93,11 @@ export default function DashboardPage() {
             {t("dashboard.balance")}
           </div>
           <div className="text-2xl font-bold tracking-tight text-gold-200">
-            ${balance.toLocaleString()}
+            {formatCurrency(balance)}
           </div>
           <div className="mt-1 flex items-center gap-1 text-xs text-emerald-400">
             <TrendingUp className="h-3 w-3" aria-hidden />
-            +12.4% this month
+            {t("dashboard.balance")}
           </div>
         </div>
         <div className="card p-5 sm:p-6">
@@ -125,7 +106,7 @@ export default function DashboardPage() {
             {t("dashboard.invested")}
           </div>
           <div className="text-2xl font-bold tracking-tight text-gold-200">
-            ${invested.toLocaleString()}
+            {formatCurrency(invested)}
           </div>
           <div className="mt-1 text-xs text-navy-400">
             across {investments.length} investments
@@ -137,11 +118,11 @@ export default function DashboardPage() {
             {t("dashboard.currentProfit")}
           </div>
           <div className="text-2xl font-bold tracking-tight text-emerald-400">
-            ${currentProfit.toLocaleString()}
+            {formatCurrency(currentProfit)}
           </div>
           <div className="mt-1 flex items-center gap-1 text-xs text-navy-400">
             <DollarSign className="h-3 w-3" aria-hidden />
-            {t("dashboard.totalEarned")}: ${earned.toLocaleString()}
+            {t("dashboard.totalEarned")}: {formatCurrency(earned)}
           </div>
         </div>
         <div className="card p-5 sm:p-6">
@@ -153,8 +134,7 @@ export default function DashboardPage() {
             {activeInvestmentCount}
           </div>
           <div className="mt-1 text-xs text-navy-400">
-            {investments.filter((i) => i.status === "active").length}{" "}
-            active ·{" "}
+            {investments.filter((i) => i.status === "active").length} active ·{" "}
             {investments.filter((i) => i.status === "completed").length}{" "}
             completed
           </div>
@@ -176,7 +156,7 @@ export default function DashboardPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,215,120,0.08)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fill: "#a8a4b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="name" tick={{ fill: "#a8a4b8", fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "#a8a4b8", fontSize: 11 }} axisLine={false} tickLine={false} domain={["auto", "auto"]} />
                 <Tooltip contentStyle={{ backgroundColor: "#0d1028", border: "1px solid rgba(255,215,120,0.2)", borderRadius: "10px", color: "#f5f3e8" }} />
                 <Area type="monotone" dataKey="profit" stroke="#34d399" strokeWidth={2} fill="url(#profitGrad)" />
@@ -236,6 +216,69 @@ export default function DashboardPage() {
       <div className="card p-5 sm:p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gold-200">
+            {t("dashboard.activeInvestments")}
+          </h2>
+          <Link
+            href="/dashboard/plans"
+            className="text-sm text-gold-400 transition hover:text-gold-300"
+          >
+            {t("dashboard.startInvesting")} {">"}
+          </Link>
+        </div>
+        {activeInvestments.length === 0 ? (
+          <div className="mt-6 flex h-40 flex-col items-center justify-center gap-3 text-sm text-navy-400">
+            {t("dashboard.noInvestments")}
+            <Link href="/dashboard/plans" className="btn-primary text-sm">
+              {t("dashboard.startInvesting")}
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {activeInvestments.map((inv) => {
+              const plan = plans.find((p) => p.id === inv.planId);
+              const daysLeft = Math.max(
+                0,
+                Math.ceil(
+                  (new Date(inv.endDate).getTime() - Date.now()) /
+                    (24 * 60 * 60 * 1000)
+                )
+              );
+              return (
+                <div
+                  key={inv.id}
+                  className="flex items-center justify-between rounded-xl bg-navy-800/30 border border-[rgba(255,215,120,0.08)] px-4 py-3"
+                >
+                  <div>
+                    <div className="text-sm text-navy-200">
+                      {plan?.name ?? inv.planId}
+                      {" · "}
+                      {formatCurrency(inv.amount)}
+                    </div>
+                    <div className="text-xs text-navy-400">
+                      {inv.days} {t("plans.days").toLowerCase()} ·{" "}
+                      {inv.dailyPercentage}% {t("plans.dailyReturn").toLowerCase()}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold text-emerald-400">
+                      +{formatCurrency(inv.currentProfit)}
+                    </div>
+                    <div className="text-xs text-navy-400">
+                      {daysLeft > 0
+                        ? `${daysLeft} ${t("dashboard.daysLeft")}`
+                        : t("dashboard.daysCompleted")}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="card p-5 sm:p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gold-200">
             {t("dashboard.recentTransactions")}
           </h2>
           <Link
@@ -264,9 +307,10 @@ export default function DashboardPage() {
                         : "bg-amber-400/20"
                     }`}
                     style={{
-                      boxShadow: tx.type === "deposit"
-                        ? "0 0 10px #34d39955"
-                        : "0 0 10px #fbbf2455",
+                      boxShadow:
+                        tx.type === "deposit"
+                          ? "0 0 10px #34d39955"
+                          : "0 0 10px #fbbf2455",
                     }}
                   />
                   <div>
@@ -275,7 +319,7 @@ export default function DashboardPage() {
                         ? t("transactions.deposit")
                         : t("transactions.withdrawal")}
                       {" · "}
-                      {tx.network || tx.cryptoName || ""}
+                      {tx.cryptoNetwork || tx.cryptoName || ""}
                     </div>
                     <div className="text-xs text-navy-400">
                       {format(new Date(tx.createdAt), "MMM d, yyyy")}
@@ -286,8 +330,8 @@ export default function DashboardPage() {
                   <div className={`text-sm font-semibold ${
                     tx.type === "deposit" ? "text-emerald-400" : "text-amber-400"
                   }`}>
-                    {tx.type === "deposit" ? "+" : "-"}$
-                    {Math.abs(tx.amount || 0).toLocaleString()}
+                    {tx.type === "deposit" ? "+" : "-"}
+                    {formatCurrency(Math.abs(tx.amount || 0))}
                   </div>
                   <div className="text-xs text-navy-400 uppercase">
                     {tx.status}
@@ -297,58 +341,6 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="card p-5 sm:p-6">
-        <h2 className="mb-4 text-lg font-semibold text-gold-200">
-          {t("dashboard.startInvesting")}
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className="rounded-xl border border-[rgba(255,215,120,0.1)] bg-navy-800/30 p-4 transition hover:border-gold-400/40"
-            >
-              <div className="mb-2 flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-gold-200">
-                  ${plan.minInvestment}
-                </span>
-                <span className="text-xs text-navy-400">
-                  {t("plans.minCapital").toLowerCase()}
-                </span>
-              </div>
-              <div className="text-xs text-navy-300">
-                {t("plans.dailyReturn")}: {plan.dailyReturn}% ·{" "}
-                {t("plans.duration")}: {plan.durationDays} {t("plans.days").toLowerCase()}
-              </div>
-              <button
-                className="mt-3 w-full rounded-lg bg-gold-400/10 px-4 py-2 text-sm font-medium text-gold-300 transition hover:bg-gold-400/20"
-                onClick={() => {
-                  if (!currentUser) return;
-                  addInvestment({
-                    id: `inv-${Date.now()}`,
-                    userId: currentUser.id,
-                    planId: plan.id,
-                    plan: plan,
-                    amount: plan.minInvestment,
-                    status: "active",
-                    startDate: new Date().toISOString(),
-                    endDate: new Date(
-                      Date.now() + plan.durationDays * 24 * 60 * 60 * 1000
-                    ).toISOString(),
-                    dailyReturn: plan.dailyReturn,
-                    totalReturn: 0,
-                    sector: plan.sector,
-                  });
-                  window.location.href = "/dashboard/plans?selected=" + plan.id;
-                }}
-                disabled={!currentUser}
-              >
-                {t("plans.invest")}
-              </button>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

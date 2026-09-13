@@ -112,12 +112,12 @@ export default function TransactionsPage() {
                       {tx.type === "deposit"
                         ? t("transactions.deposit")
                         : t("transactions.withdrawal")}
-                      {tx.network ? ` · ${tx.network}` : ""}
-                      {tx.cryptoName ? ` · ${tx.cryptoName}` : ""}
+                      {` · ${tx.cryptoName}`}
+                      {tx.cryptoNetwork ? ` · ${tx.cryptoNetwork}` : ""}
                     </div>
                     <div className="mt-0.5 text-xs text-navy-400">
                       {format(new Date(tx.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                      {tx.address ? ` · ${tx.address.slice(0, 10)}...` : ""}
+                      {tx.cryptoAddress ? ` · ${tx.cryptoAddress.slice(0, 10)}…` : ""}
                     </div>
                   </div>
                 </div>

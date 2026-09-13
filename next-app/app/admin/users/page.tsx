@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/stores/useStore";
 import AdminLayout from "@/components/layout/AdminLayout";
 import { motion } from "framer-motion";
-import { UserPlus, Search, Ban, Check, Trash2, Mail, Shield } from "lucide-react";
+import { UserPlus, Search, Ban, Check, Trash2, AlertCircle, Shield } from "lucide-react";
 
 export default function AdminUsersPage() {
   return (
@@ -301,5 +301,3 @@ function AdminUsersContent() {
     </div>
   );
 }
-
-import { AlertCircle } from "lucide-react";

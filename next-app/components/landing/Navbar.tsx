@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useSetLang, useAvailableLangs } from "@/lib/i18n";
 import { useStore } from "@/lib/stores/useStore";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LogOut, User } from "lucide-react";
 import { useState } from "react";
 

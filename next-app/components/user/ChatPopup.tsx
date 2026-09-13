@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useStore } from '../stores/useStore';
+import { useStore } from '@/lib/stores/useStore';
 import { motion } from 'framer-motion';
 import { X, Send, MessageCircle } from 'lucide-react';
 import { formatDateTime, generateId } from '@/lib/utils/helpers';

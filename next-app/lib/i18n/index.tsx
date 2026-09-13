@@ -1,80 +1,53 @@
 "use client";
 
-import { useRef, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import type { i18n } from "i18next";
-import { useTranslation } from "react-i18next";
-import i18n from "./i18n";
+import { useEffect, useMemo, useState } from "react";
+import i18nInstance, { builtInLanguages } from "./i18n";
+import { I18nextProvider as ReactI18nextProvider, useTranslation } from "react-i18next";
 
 export { useTranslation };
 
-export type { i18n };
-
 export function I18nextProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const lang = useLang();
-  const initRef = useRef(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
-    i18n.init();
+    if (!i18nInstance.isInitialized) {
+      i18nInstance.init().then(() => setReady(true));
+    } else {
+      setReady(true);
+    }
   }, []);
 
-  useEffect(() => {
-    const instance = i18n as i18n;
-    if (!instance.isInitialized) return;
-    instance.changeLanguage(lang);
-  }, [lang]);
+  if (!ready) {
+    return <>{children}</>;
+  }
 
-  useEffect(() => {
-    const instance = i18n as i18n;
-    if (!instance.isInitialized) return;
-    document.documentElement.lang = lang.split("-")[0];
-    document.documentElement.dir = instance.getDataByLanguage(lang)?.dir ?? "ltr";
-  }, [lang]);
-
-  return (
-    <>
-      {children}
-    </>
-  );
+  return <ReactI18nextProvider i18n={i18nInstance}>{children}</ReactI18nextProvider>;
 }
 
 export function useLang() {
-  if (typeof window === "undefined") {
-    return "en-US";
-  }
-  const stored =
-    (typeof window !== "undefined" &&
-      localStorage.getItem("portbuff_lang")) ||
-    "en-US";
-  return stored;
+  const { i18n } = useTranslation();
+  return i18n.language || "en-US";
 }
 
 export function useSetLang() {
-  const router = useRouter();
-  const t = useTranslation().t;
+  const { i18n } = useTranslation();
 
   return (code: string) => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("portbuff_lang", code);
-    const instance = i18n as i18n;
-    instance.changeLanguage(code);
-    const dir =
-      instance.getDataByLanguage(code)?.dir ?? "ltr";
-    document.documentElement.dir = dir;
-    document.documentElement.lang = code.split("-")[0];
-    router.refresh();
+    void i18n.changeLanguage(code);
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = code.split("-")[0];
+    }
   };
 }
 
 export function useAvailableLangs() {
   return useMemo(
-    () => [
-      { code: "en-US", name: "EN", nativeName: "English" },
-      { code: "es-ES", name: "ES", nativeName: "Español" },
-    ],
+    () =>
+      Object.values(builtInLanguages).map((l) => ({
+        code: l.code,
+        name: l.name,
+        nativeName: l.nativeName,
+      })),
     []
   );
 }
