@@ -1,19 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useStore } from "@/lib/stores/useStore";
-import Navbar from "@/components/landing/Navbar";
-import ChatPopup from "@/components/user/ChatPopup";
+import { useStore } from "@/lib/store/useStore";
+import { useRequireAuth } from "@/lib/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle } from "lucide-react";
-
-const layoutMotion = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.22 },
-};
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  LayoutDashboard,
+  TrendingUp,
+  History,
+  Settings,
+  LogOut,
+  MessageCircle,
+  Menu,
+  X,
+  User,
+} from "lucide-react";
+import ChatPopup from "@/components/ChatPopup";
 
 export default function UserLayout({
   children,
@@ -21,67 +26,190 @@ export default function UserLayout({
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
-  const router = useRouter();
+  const currentUser = useRequireAuth();
+  const { logout } = useStore();
   const pathname = usePathname();
-  const { currentUser } = useStore();
+  const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
-  useEffect(() => {
-    if (!currentUser) {
-      router.replace("/auth?returnTo=" + encodeURIComponent(pathname || "/dashboard"));
-    }
-  }, [currentUser, router, pathname]);
+  if (!currentUser) return null;
 
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-navy-950 px-5 py-24 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-6 rounded-xl bg-navy-900/60 border border-[rgba(255,215,120,0.12)] p-6">
-            <p className="text-lg font-semibold text-gold-200">
-              {t("common.loading")}
-            </p>
-          </div>
-          <p className="mt-4 text-sm text-navy-400">
-            Please sign in to continue.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleLogout = () => {
+    logout();
+    router.replace("/auth");
+  };
+
+  const navItems = [
+    { to: "/dashboard", icon: LayoutDashboard, label: t("nav.dashboard") },
+    { to: "/dashboard/plans", icon: TrendingUp, label: t("nav.plans") },
+    {
+      to: "/dashboard/transactions",
+      icon: History,
+      label: t("nav.transactions"),
+    },
+    { to: "/dashboard/settings", icon: Settings, label: t("nav.settings") },
+  ];
+
+  const isCurrentPath = (path: string) => {
+    if (path === "/dashboard")
+      return pathname === "/dashboard" || pathname === "/dashboard/";
+    return pathname.startsWith(path);
+  };
 
   return (
-    <div className="min-h-screen bg-navy-950">
-      <Navbar />
-      <main className="mx-auto max-w-7xl px-5 py-8 pt-28">
-        <motion.div
-          variants={layoutMotion}
-          initial="initial"
-          animate="animate"
-        >
-          {children}
-        </motion.div>
-        <div className="h-20" aria-hidden />
-      </main>
+    <div className="min-h-screen bg-surface-50 flex">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-surface-100 fixed h-full z-30">
+        <div className="p-6 border-b border-surface-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-surface-900">
+                {t("app.name")}
+              </h1>
+              <p className="text-xs text-surface-400">{t("app.tagline")}</p>
+            </div>
+          </div>
+        </div>
 
-      {/* Floating chat button */}
-      <AnimatePresence>
-        {!chatOpen && (
-          <motion.button
-            key="chat-fab"
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.6 }}
-            transition={{ type: "spring", damping: 20, stiffness: 260 }}
-            onClick={() => setChatOpen(true)}
-            className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-gold-300 to-amber-500 text-navy-950 shadow-[0_10px_30px_-8px_rgba(224,165,35,0.6)] transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-gold-400 focus-visible:outline-offset-2"
-            aria-label={t("nav.chat")}
+        <nav className="flex-1 p-4 space-y-1">
+          {navItems.map((item) => (
+            <Link
+              key={item.to}
+              href={item.to}
+              className={isCurrentPath(item.to) ? "sidebar-link-active" : "sidebar-link"}
+            >
+              <item.icon className="w-5 h-5" />
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        <div className="p-4 border-t border-surface-100">
+          <div className="flex items-center gap-3 mb-3 px-4 py-2">
+            <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
+              <User className="w-4 h-4 text-primary-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-surface-900 truncate">
+                {currentUser.firstName} {currentUser.lastName}
+              </p>
+              <p className="text-xs text-surface-400 truncate">
+                {currentUser.email}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="sidebar-link w-full text-red-500 hover:text-red-600 hover:bg-red-50"
           >
-            <MessageCircle className="h-6 w-6" aria-hidden />
-          </motion.button>
+            <LogOut className="w-5 h-5" />
+            <span>{t("nav.logout")}</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed left-0 top-0 h-full w-72 bg-white z-50 lg:hidden shadow-xl"
+            >
+              <div className="p-6 border-b border-surface-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-bold text-surface-900">
+                      {t("app.name")}
+                    </h1>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="text-surface-400 hover:text-surface-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <nav className="flex-1 p-4 space-y-1">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.to}
+                    href={item.to}
+                    onClick={() => setSidebarOpen(false)}
+                    className={
+                      isCurrentPath(item.to) ? "sidebar-link-active" : "sidebar-link"
+                    }
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </nav>
+
+              <div className="p-4 border-t border-surface-100">
+                <button
+                  onClick={handleLogout}
+                  className="sidebar-link w-full text-red-500 hover:text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>{t("nav.logout")}</span>
+                </button>
+              </div>
+            </motion.aside>
+          </>
         )}
       </AnimatePresence>
 
-      {/* Chat popup */}
+      {/* Main Content */}
+      <div className="flex-1 lg:ml-64 min-h-screen">
+        {/* Mobile Header */}
+        <div className="lg:hidden sticky top-0 z-30 bg-white border-b border-surface-100 px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-surface-600"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-primary-600" />
+            <span className="font-bold text-surface-900">{t("app.name")}</span>
+          </div>
+          <div className="w-6" />
+        </div>
+
+        <main className="p-4 lg:p-8">{children}</main>
+      </div>
+
+      {/* Chat FAB */}
+      <motion.button
+        onClick={() => setChatOpen(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 text-white rounded-full shadow-lg flex items-center justify-center z-40 hover:shadow-xl transition-shadow"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <MessageCircle className="w-6 h-6" />
+      </motion.button>
+
+      {/* Chat Popup */}
       <AnimatePresence>
         {chatOpen && <ChatPopup onClose={() => setChatOpen(false)} />}
       </AnimatePresence>

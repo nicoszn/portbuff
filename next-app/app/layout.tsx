@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AppShell } from "@/components/layout/AppShell";
+
+export const dynamic = "force-dynamic";
+import I18nProvider from "@/components/providers/I18nProvider";
+import ToasterWrapper from "@/components/providers/ToasterWrapper";
 
 export const metadata: Metadata = {
-  title: "Portbuff - Global Investment Platform",
+  title: "PortBuff - Smart Investment Portfolio",
   description:
-    "Access exclusive investment opportunities across agriculture, minerals, energy, and more.",
-  icons: {
-    icon: "/favicon.svg",
-  },
+    "Invest in the world's most promising opportunities across agriculture, minerals, energy, and more.",
 };
 
 export default function RootLayout({
@@ -17,24 +17,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <head>
-        <link
-          rel="preconnect"
-          href="https://fonts.googleapis.com"
-        />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="antialiased">
-        <AppShell>{children}</AppShell>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <I18nProvider>
+          <ToasterWrapper />
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

@@ -1,294 +1,196 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useStore } from "@/lib/stores/useStore";
-import AdminLayout from "@/components/layout/AdminLayout";
-import { formatCurrency } from "@/lib/utils/helpers";
-import { motion } from "framer-motion";
-import { Plus, Edit2, Trash2, AlertCircle, Check } from "lucide-react";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useStore } from "@/lib/store/useStore";
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Edit2, Trash2, X, TrendingUp, Palette } from 'lucide-react';
+import { formatCurrency, generateId } from "@/lib/utils/helpers";
+import toast from 'react-hot-toast';
 
-type PlanForm = {
-  id: string;
-  name: string;
-  minCapital: number;
-  maxCapital: number;
-  dailyPercentage: number;
-  days: number;
-  description: string;
-  color: string;
-  icon: string;
-};
-
-const emptyForm: PlanForm = {
-  id: "",
-  name: "",
-  minCapital: 100,
-  maxCapital: 1000,
-  dailyPercentage: 2.5,
-  days: 4,
-  description: "",
-  color: "from-blue-500 to-cyan-400",
-  icon: "🚀",
-};
-
-export default function AdminPlansPage() {
-  return (
-    <AdminLayout>
-      <AdminPlansContent />
-    </AdminLayout>
-  );
-}
-
-function AdminPlansContent() {
+export default function AdminPlans() {
   const { t } = useTranslation();
   const { plans, addPlan, updatePlan, deletePlan } = useStore();
+  const [showModal, setShowModal] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    name: '',
+    minCapital: 0,
+    maxCapital: 0,
+    dailyPercentage: 0,
+    days: 4,
+    description: '',
+    color: 'from-blue-500 to-cyan-400',
+    icon: '🚀',
+  });
 
-  const [mode, setMode] = useState<"list" | "form">("list");
-  const [form, setForm] = useState<PlanForm>(emptyForm);
-  const [isEditing, setIsEditing] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const colorOptions = [
+    'from-blue-500 to-cyan-400',
+    'from-purple-500 to-pink-400',
+    'from-amber-500 to-orange-400',
+    'from-green-500 to-emerald-400',
+    'from-red-500 to-rose-400',
+    'from-indigo-500 to-blue-400',
+  ];
 
-  const notify = (type: "success" | "error", text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
-  };
+  const iconOptions = ['🚀', '💎', '👑', '⭐', '💰', '🎯', '🔥', '✨'];
 
   const openCreate = () => {
-    setForm(emptyForm);
-    setIsEditing(false);
-    setMode("form");
+    setEditingPlan(null);
+    setForm({ name: '', minCapital: 0, maxCapital: 0, dailyPercentage: 0, days: 4, description: '', color: 'from-blue-500 to-cyan-400', icon: '🚀' });
+    setShowModal(true);
   };
 
   const openEdit = (planId: string) => {
     const plan = plans.find((p) => p.id === planId);
     if (!plan) return;
+    setEditingPlan(planId);
     setForm({ ...plan });
-    setIsEditing(true);
-    setMode("form");
+    setShowModal(true);
   };
 
-  const savePlan = () => {
-    if (!form.name.trim()) {
-      notify("error", "Plan name is required");
-      return;
-    }
-    if (form.minCapital <= 0) {
-      notify("error", "Minimum capital must be greater than 0");
-      return;
-    }
-    if (form.maxCapital <= form.minCapital) {
-      notify("error", "Maximum capital must be greater than minimum");
-      return;
-    }
-    if (form.dailyPercentage < 0) {
-      notify("error", "Daily percentage cannot be negative");
-      return;
-    }
-    if (form.days <= 0) {
-      notify("error", "Duration must be at least 1 day");
-      return;
-    }
-
-    if (isEditing) {
-      updatePlan(form.id, { ...form });
-      notify("success", `Plan "${form.name}" updated`);
+  const handleSave = () => {
+    if (editingPlan) {
+      updatePlan(editingPlan, form);
+      toast.success('Plan updated!');
     } else {
-      addPlan({ ...form, id: `plan-${Date.now()}` });
-      notify("success", `Plan "${form.name}" created`);
+      addPlan({ id: generateId(), ...form });
+      toast.success('Plan created!');
     }
-    setMode("list");
+    setShowModal(false);
   };
 
-  const handleDelete = (planId: string, name: string) => {
-    if (!confirm(`Delete plan "${name}"?`)) return;
-    deletePlan(planId);
-    notify("success", `Plan "${name}" deleted`);
+  const handleDelete = (planId: string) => {
+    if (window.confirm(t('admin.confirmDelete'))) {
+      deletePlan(planId);
+      toast.success('Plan deleted!');
+    }
+  };
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 },
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gold-200">
-            {t("admin.plans")}
-          </h1>
-          <p className="mt-1 text-sm text-navy-300">
-            {t("admin.managePlans")}
-          </p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">{t('admin.managePlans')}</h1>
+          <p className="text-surface-500 mt-1">{plans.length} plans total</p>
         </div>
-        <button onClick={openCreate} className="btn-primary">
-          <Plus className="h-4 w-4" aria-hidden />
-          {t("admin.createPlan")}
-        </button>
-      </div>
+        <motion.button onClick={openCreate} className="btn-primary flex items-center gap-2" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Plus className="w-4 h-4" />
+          {t('admin.createPlan')}
+        </motion.button>
+      </motion.div>
 
-      {message && (
-        <div
-          className={`flex items-start gap-3 rounded-xl p-4 text-sm ${
-            message.type === "success"
-              ? "bg-emerald-400/10 border border-emerald-400/20 text-emerald-300"
-              : "bg-red-400/10 border border-red-400/20 text-red-300"
-          }`}
-        >
-          {message.type === "success" ? (
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-          ) : (
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
-          )}
-          <span>{message.text}</span>
-        </div>
-      )}
-
-      {mode === "form" ? (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card p-6">
-          <h2 className="mb-5 text-lg font-semibold text-gold-200">
-            {isEditing ? t("admin.editPlan") : t("admin.createPlan")}
-          </h2>
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-4">
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-medium text-navy-300">Plan Name</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="input-field"
-                  placeholder="Professional"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">Icon (emoji)</label>
-                <input
-                  type="text"
-                  value={form.icon}
-                  onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
-                  className="input-field"
-                  placeholder="💎"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">Gradient</label>
-                <select
-                  value={form.color}
-                  onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                  className="input-field"
-                >
-                  <option value="from-blue-500 to-cyan-400">Blue → Cyan</option>
-                  <option value="from-purple-500 to-pink-400">Purple → Pink</option>
-                  <option value="from-amber-500 to-orange-400">Amber → Orange</option>
-                  <option value="from-emerald-500 to-teal-400">Emerald → Teal</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">{t("plans.minCapital")}</label>
-                <input
-                  type="number"
-                  value={form.minCapital}
-                  onChange={(e) => setForm((f) => ({ ...f, minCapital: Number(e.target.value) || 0 }))}
-                  className="input-field"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">{t("plans.maxCapital")}</label>
-                <input
-                  type="number"
-                  value={form.maxCapital}
-                  onChange={(e) => setForm((f) => ({ ...f, maxCapital: Number(e.target.value) || 0 }))}
-                  className="input-field"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">{t("plans.dailyReturn")} (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={form.dailyPercentage}
-                  onChange={(e) => setForm((f) => ({ ...f, dailyPercentage: Number(e.target.value) || 0 }))}
-                  className="input-field"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">{t("plans.duration")} ({t("plans.days")})</label>
-                <input
-                  type="number"
-                  value={form.days}
-                  onChange={(e) => setForm((f) => ({ ...f, days: Number(e.target.value) || 1 }))}
-                  className="input-field"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-navy-300">Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                className="input-field min-h-[80px] resize-y"
-                placeholder="Brief description of this plan..."
-              />
-            </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button onClick={() => setMode("list")} className="btn-outline">
-                {t("common.cancel")}
-              </button>
-              <button onClick={savePlan} className="btn-primary">
-                {isEditing ? t("admin.editPlan") : t("admin.createPlan")}
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      ) : (
-        <div className="space-y-3">
-          {plans.length === 0 ? (
-            <div className="flex h-40 items-center justify-center rounded-2xl border border-[rgba(255,215,120,0.12)] bg-navy-900/70 text-center text-sm text-navy-400 backdrop-blur-sm">
-              No plans created yet
-            </div>
-          ) : (
-            plans.map((plan, idx) => (
-              <motion.div
-                key={plan.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.02, duration: 0.25 }}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[rgba(255,215,120,0.1)] bg-navy-900/70 p-5 backdrop-blur-sm"
-              >
+      {/* Plans Grid */}
+      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {plans.map((plan) => (
+          <motion.div
+            key={plan.id}
+            variants={item}
+            className="bg-white rounded-2xl border border-surface-100 overflow-hidden shadow-sm"
+          >
+            <div className={`bg-gradient-to-r ${plan.color} p-4 text-white`}>
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{plan.icon}</span>
-                    <span className="text-lg font-bold text-gold-200">{plan.name}</span>
-                  </div>
-                  <div className="mt-1 text-sm text-navy-300">{plan.description}</div>
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-navy-400">
-                    <span>
-                      {formatCurrency(plan.minCapital)} – {formatCurrency(plan.maxCapital)}
-                    </span>
-                    <span>{plan.dailyPercentage}% daily</span>
-                    <span>{plan.days} days</span>
-                  </div>
+                  <span className="text-2xl">{plan.icon}</span>
+                  <h3 className="text-lg font-bold mt-1">{plan.name}</h3>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEdit(plan.id)}
-                    className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium text-navy-300 transition hover:bg-navy-800/60 hover:text-gold-300"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" aria-hidden />
-                    {t("admin.editPlan")}
+                <div className="flex gap-1">
+                  <button onClick={() => openEdit(plan.id)} className="p-1.5 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
+                    <Edit2 className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => handleDelete(plan.id, plan.name)}
-                    className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium text-red-400 transition hover:bg-red-400/10"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                    {t("admin.deletePlan")}
+                  <button onClick={() => handleDelete(plan.id)} className="p-1.5 bg-white/20 rounded-lg hover:bg-red-500/80 transition-colors">
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-              </motion.div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+              </div>
+            </div>
+            <div className="p-4 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-surface-500">Min Capital</span><span className="font-medium">{formatCurrency(plan.minCapital)}</span></div>
+              <div className="flex justify-between"><span className="text-surface-500">Max Capital</span><span className="font-medium">{formatCurrency(plan.maxCapital)}</span></div>
+              <div className="flex justify-between"><span className="text-surface-500">Daily %</span><span className="font-medium text-accent-600">{plan.dailyPercentage}%</span></div>
+              <div className="flex justify-between"><span className="text-surface-500">Days</span><span className="font-medium">{plan.days}</span></div>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="modal-overlay" onClick={() => setShowModal(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-surface-900">{editingPlan ? t('admin.editPlan') : t('admin.createPlan')}</h3>
+                  <button onClick={() => setShowModal(false)} className="text-surface-400 hover:text-surface-600"><X className="w-5 h-5" /></button>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 mb-1">Name</label>
+                      <input type="text" className="input-field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 mb-1">Daily %</label>
+                      <input type="number" className="input-field" value={form.dailyPercentage} onChange={(e) => setForm({ ...form, dailyPercentage: parseFloat(e.target.value) || 0 })} step="0.1" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 mb-1">Min Capital</label>
+                      <input type="number" className="input-field" value={form.minCapital} onChange={(e) => setForm({ ...form, minCapital: parseFloat(e.target.value) || 0 })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 mb-1">Max Capital</label>
+                      <input type="number" className="input-field" value={form.maxCapital} onChange={(e) => setForm({ ...form, maxCapital: parseFloat(e.target.value) || 0 })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-1">Days</label>
+                    <input type="number" className="input-field" value={form.days} onChange={(e) => setForm({ ...form, days: parseInt(e.target.value) || 4 })} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-1">Description</label>
+                    <textarea className="input-field" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-2 flex items-center gap-1"><Palette className="w-4 h-4" /> Color</label>
+                    <div className="flex gap-2">
+                      {colorOptions.map((c) => (
+                        <button key={c} onClick={() => setForm({ ...form, color: c })} className={`w-8 h-8 rounded-full bg-gradient-to-r ${c} ${form.color === c ? 'ring-2 ring-offset-2 ring-primary-500' : ''}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-2">Icon</label>
+                    <div className="flex gap-2">
+                      {iconOptions.map((ic) => (
+                        <button key={ic} onClick={() => setForm({ ...form, icon: ic })} className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl border-2 ${form.icon === ic ? 'border-primary-500 bg-primary-50' : 'border-surface-200 hover:border-primary-200'}`}>
+                          {ic}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setShowModal(false)} className="flex-1 btn-secondary">{t('common.cancel')}</button>
+                  <button onClick={handleSave} className="flex-1 btn-primary">{editingPlan ? t('common.save') : t('common.create')}</button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

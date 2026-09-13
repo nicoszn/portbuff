@@ -1,195 +1,153 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useStore } from "@/lib/stores/useStore";
-import AdminLayout from "@/components/layout/AdminLayout";
-import { format } from "date-fns";
-import { formatCurrency } from "@/lib/utils/helpers";
-import { motion } from "framer-motion";
-import { ArrowRight, ArrowLeft, Search, Check, X } from "lucide-react";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useStore } from "@/lib/store/useStore";
+import { motion } from 'framer-motion';
+import { CheckCircle, XCircle, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { formatCurrency, formatDate } from "@/lib/utils/helpers";
+import toast from 'react-hot-toast';
 
-type FilterType = "all" | "deposit" | "withdrawal";
-type StatusFilter = "all" | "pending" | "approved" | "rejected";
-
-export default function AdminTransactionsPage() {
-  return (
-    <AdminLayout>
-      <AdminTransactionsContent />
-    </AdminLayout>
-  );
-}
-
-function AdminTransactionsContent() {
+export default function AdminTransactions() {
   const { t } = useTranslation();
-  const { transactions, updateTransaction, users } = useStore();
+  const { transactions, users, updateTransaction, updateUser } = useStore();
+  const [activeTab, setActiveTab] = useState<'all' | 'deposit' | 'withdrawal'>('all');
 
-  const [typeFilter, setTypeFilter] = useState<FilterType>("all");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [search, setSearch] = useState("");
+  const filtered = transactions
+    .filter((tx) => activeTab === 'all' || tx.type === activeTab)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const filtered = transactions.filter((tx) => {
-    if (typeFilter !== "all" && tx.type !== typeFilter) return false;
-    if (statusFilter !== "all" && tx.status !== statusFilter) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const owner = users.find((u) => u.id === tx.userId);
-      const matches =
-        (owner &&
-          (owner.email.toLowerCase().includes(q) ||
-            `${owner.firstName} ${owner.lastName}`
-              .toLowerCase()
-              .includes(q))) ||
-        tx.cryptoAddress.toLowerCase().includes(q) ||
-        tx.cryptoName.toLowerCase().includes(q);
-      if (!matches) return false;
+  const handleApprove = (tx: typeof transactions[0]) => {
+    const user = users.find((u) => u.id === tx.userId);
+    if (!user) return;
+
+    updateTransaction(tx.id, { status: 'approved', processedAt: new Date().toISOString() });
+
+    if (tx.type === 'deposit') {
+      updateUser(tx.userId, {
+        balance: (user.balance || 0) + tx.amount,
+        totalInvested: (user.totalInvested || 0) + tx.amount,
+      });
     }
-    return true;
-  });
 
-  const sorted = [...filtered].sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+    toast.success('Transaction approved!');
+  };
+
+  const handleReject = (txId: string) => {
+    updateTransaction(txId, { status: 'rejected', processedAt: new Date().toISOString(), adminNote: 'Rejected by admin' });
+    toast.success('Transaction rejected!');
+  };
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0 },
+  };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gold-200">
-            {t("admin.transactions")}
-          </h1>
-          <p className="mt-1 text-sm text-navy-300">
-            {t("admin.deposits")} / {t("admin.withdrawals")}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            className="input-field w-36"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as FilterType)}
-            className="input-field w-36"
-          >
-            <option value="all">All Types</option>
-            <option value="deposit">Deposits</option>
-            <option value="withdrawal">Withdrawals</option>
-          </select>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-400" aria-hidden />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by user or address..."
-              className="input-field pl-9 w-48"
-            />
-          </div>
-        </div>
-      </div>
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      <motion.div variants={item}>
+        <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">{t('admin.transactions')}</h1>
+        <p className="text-surface-500 mt-1">Manage deposits and withdrawals</p>
+      </motion.div>
 
-      {sorted.length === 0 ? (
-        <div className="flex h-40 items-center justify-center rounded-2xl border border-[rgba(255,215,120,0.12)] bg-navy-900/70 text-center text-sm text-navy-400 backdrop-blur-sm">
-          No transactions found
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {sorted.map((tx, idx) => {
-            const owner = users.find((u) => u.id === tx.userId);
-            const displayName = owner
-              ? `${owner.firstName} ${owner.lastName}`
-              : tx.userId;
+      {/* Tabs */}
+      <motion.div variants={item} className="flex gap-2">
+        {(['all', 'deposit', 'withdrawal'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              activeTab === tab ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-surface-600 border border-surface-200 hover:border-primary-200'
+            }`}
+          >
+            {tab === 'all' ? 'All' : tab === 'deposit' ? t('admin.deposits') : t('admin.withdrawals')}
+            {tab !== 'all' && (
+              <span className="ml-2 text-xs bg-white/20 px-1.5 py-0.5 rounded-full">
+                {transactions.filter((tx) => tx.type === tab && tx.status === 'pending').length}
+              </span>
+            )}
+          </button>
+        ))}
+      </motion.div>
 
-            return (
-              <motion.div
-                key={tx.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.02, duration: 0.25 }}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[rgba(255,215,120,0.1)] bg-navy-900/70 p-4 sm:p-5 backdrop-blur-sm"
-              >
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                      tx.type === "deposit"
-                        ? "bg-emerald-400/10 text-emerald-400"
-                        : "bg-amber-400/10 text-amber-400"
-                    }`}
-                  >
-                    {tx.type === "deposit" ? (
-                      <ArrowRight className="h-5 w-5" aria-hidden />
-                    ) : (
-                      <ArrowLeft className="h-5 w-5" aria-hidden />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-navy-200 truncate">
-                      {displayName}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-navy-400 truncate">
-                      {tx.cryptoName} · {tx.cryptoNetwork}
-                      <span className="font-mono truncate">
-                        {tx.cryptoAddress.slice(0, 14)}…
+      {/* Transactions Table */}
+      <motion.div variants={item} className="card overflow-hidden p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-surface-400 bg-surface-50 border-b border-surface-100">
+                <th className="px-6 py-3 font-medium">User</th>
+                <th className="px-6 py-3 font-medium">Type</th>
+                <th className="px-6 py-3 font-medium">Amount</th>
+                <th className="px-6 py-3 font-medium hidden sm:table-cell">Network</th>
+                <th className="px-6 py-3 font-medium">Date</th>
+                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((tx) => {
+                const user = users.find((u) => u.id === tx.userId);
+                return (
+                  <motion.tr key={tx.id} variants={item} className="border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-surface-900">{user?.firstName} {user?.lastName}</p>
+                      <p className="text-xs text-surface-400">{user?.email}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1">
+                        {tx.type === 'deposit' ? (
+                          <ArrowDownRight className="w-4 h-4 text-accent-500" />
+                        ) : (
+                          <ArrowUpRight className="w-4 h-4 text-red-500" />
+                        )}
+                        <span className="capitalize font-medium">{tx.type}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 font-semibold">{formatCurrency(tx.amount)}</td>
+                    <td className="px-6 py-4 hidden sm:table-cell text-surface-500">{tx.cryptoNetwork}</td>
+                    <td className="px-6 py-4 text-surface-500">{formatDate(tx.createdAt)}</td>
+                    <td className="px-6 py-4">
+                      <span className={
+                        tx.status === 'approved' ? 'badge-success' :
+                        tx.status === 'pending' ? 'badge-warning' : 'badge-danger'
+                      }>
+                        {tx.status}
                       </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 sm:gap-6">
-                  <div className="text-right">
-                    <div
-                      className={`text-lg font-semibold ${
-                        tx.type === "deposit" ? "text-emerald-400" : "text-amber-400"
-                      }`}
-                    >
-                      {tx.type === "deposit" ? "+" : "-"}
-                      {formatCurrency(Math.abs(tx.amount))}
-                    </div>
-                    <div className="text-xs text-navy-400 mt-0.5">
-                      {format(new Date(tx.createdAt), "MMM d, yyyy")}
-                    </div>
-                  </div>
-                  {tx.status === "pending" ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => updateTransaction(tx.id, { status: "approved" })}
-                        className="flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-medium bg-emerald-400/10 text-emerald-400 transition hover:bg-emerald-400/20"
-                      >
-                        <Check className="h-3 w-3" aria-hidden />
-                        {t("admin.approve")}
-                      </button>
-                      <button
-                        onClick={() => updateTransaction(tx.id, { status: "rejected" })}
-                        className="flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-medium bg-red-400/10 text-red-400 transition hover:bg-red-400/20"
-                      >
-                        <X className="h-3 w-3" aria-hidden />
-                        {t("admin.reject")}
-                      </button>
-                    </div>
-                  ) : (
-                    <span
-                      className={`text-xs uppercase ${
-                        tx.status === "approved"
-                          ? "text-emerald-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {tx.status}
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
+                      {tx.adminNote && <p className="text-xs text-surface-400 mt-1">{tx.adminNote}</p>}
+                    </td>
+                    <td className="px-6 py-4">
+                      {tx.status === 'pending' && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleApprove(tx)}
+                            className="p-1.5 text-accent-600 hover:bg-accent-50 rounded-lg transition-colors"
+                            title="Approve"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleReject(tx.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Reject"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

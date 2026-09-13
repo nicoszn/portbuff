@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useStore } from "@/lib/stores/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { motion } from "framer-motion";
 import { X, Send, MessageCircle } from "lucide-react";
 import { formatDateTime, generateId } from "@/lib/utils/helpers";
@@ -13,7 +13,8 @@ interface Props {
 
 export default function ChatPopup({ onClose }: Props) {
   const { t } = useTranslation();
-  const { currentUser, chatMessages, addChatMessage, markChatRead } = useStore();
+  const { currentUser, chatMessages, addChatMessage, markChatRead } =
+    useStore();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -26,7 +27,8 @@ export default function ChatPopup({ onClose }: Props) {
         (m.senderId === adminId && m.receiverId === currentUser?.id)
     )
     .sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export default function ChatPopup({ onClose }: Props) {
     setMessage("");
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -63,43 +65,34 @@ export default function ChatPopup({ onClose }: Props) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24, scale: 0.95 }}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 24, scale: 0.95 }}
+      exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      className="fixed bottom-24 right-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-[rgba(255,215,120,0.18)] bg-navy-900 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.8)] sm:right-6"
-      role="dialog"
-      aria-modal="false"
-      aria-label={t("chat.title")}
+      className="fixed bottom-24 right-6 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-surface-100 z-50 flex flex-col max-h-[500px]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between bg-gradient-to-r from-gold-400/15 to-amber-500/10 border-b border-[rgba(255,215,120,0.15)] px-4 py-3">
+      <div className="p-4 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-t-2xl flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-400/20">
-            <MessageCircle className="h-4 w-4 text-gold-300" aria-hidden />
+          <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
+            <MessageCircle className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-gold-200">
-              {t("chat.title")}
-            </h4>
-            <p className="text-xs text-navy-400">{t("chat.admin")}</p>
+            <h4 className="font-semibold text-sm">{t("chat.title")}</h4>
+            <p className="text-xs text-primary-200">{t("chat.admin")}</p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="rounded-lg p-1.5 text-navy-300 transition hover:bg-navy-800 hover:text-gold-300 focus-visible:outline-2 focus-visible:outline-gold-400"
-          aria-label="Close chat"
-        >
-          <X className="h-5 w-5" aria-hidden />
+        <button onClick={onClose} className="text-white/80 hover:text-white">
+          <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Messages */}
-      <div className="max-h-[320px] min-h-[220px] flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px] max-h-[300px]">
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center py-8 text-center">
-            <MessageCircle className="mb-3 h-10 w-10 text-navy-600" aria-hidden />
-            <p className="text-sm text-navy-400">{t("chat.noMessages")}</p>
+          <div className="text-center py-8">
+            <MessageCircle className="w-10 h-10 text-surface-200 mx-auto mb-2" />
+            <p className="text-surface-400 text-sm">{t("chat.noMessages")}</p>
           </div>
         ) : (
           messages.map((msg) => {
@@ -110,16 +103,16 @@ export default function ChatPopup({ onClose }: Props) {
                 className={`flex ${isMine ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                  className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
                     isMine
-                      ? "rounded-br-md bg-gold-400/90 text-navy-950"
-                      : "rounded-bl-md border border-[rgba(255,215,120,0.1)] bg-navy-800/80 text-navy-100"
+                      ? "bg-primary-600 text-white rounded-br-md"
+                      : "bg-surface-100 text-surface-900 rounded-bl-md"
                   }`}
                 >
-                  <p className="break-words">{msg.message}</p>
+                  <p>{msg.message}</p>
                   <p
-                    className={`mt-1 text-[10px] ${
-                      isMine ? "text-navy-800/70" : "text-navy-500"
+                    className={`text-[10px] mt-1 ${
+                      isMine ? "text-primary-200" : "text-surface-400"
                     }`}
                   >
                     {formatDateTime(msg.createdAt)}
@@ -133,26 +126,24 @@ export default function ChatPopup({ onClose }: Props) {
       </div>
 
       {/* Input */}
-      <div className="border-t border-[rgba(255,215,120,0.12)] bg-navy-950/50 p-3">
+      <div className="p-3 border-t border-surface-100">
         <div className="flex items-center gap-2">
           <input
             type="text"
-            className="input-field flex-1 py-2 text-sm"
+            className="flex-1 px-3 py-2 rounded-xl border border-surface-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             placeholder={t("chat.placeholder")}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            autoFocus
+            onKeyDown={handleKeyPress}
           />
           <motion.button
             onClick={handleSend}
             disabled={!message.trim()}
+            className="w-9 h-9 bg-primary-600 text-white rounded-xl flex items-center justify-center hover:bg-primary-700 disabled:opacity-50 transition-colors"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-gold-300 to-amber-500 text-navy-950 transition hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100"
-            aria-label={t("chat.send")}
           >
-            <Send className="h-4 w-4" aria-hidden />
+            <Send className="w-4 h-4" />
           </motion.button>
         </div>
       </div>

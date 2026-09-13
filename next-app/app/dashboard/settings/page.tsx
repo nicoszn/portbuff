@@ -1,217 +1,374 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useStore } from "@/lib/stores/useStore";
-import { useLang, useSetLang, useAvailableLangs } from "@/lib/i18n";
-import { Save, AlertCircle, Check, Globe } from "lucide-react";
+import { useStore } from "@/lib/store/useStore";
+import {
+  changeLanguage,
+  enableAutoDetect,
+  isAutoDetectEnabled,
+  getBrowserLanguages,
+} from "@/lib/i18n";
+import { motion } from "framer-motion";
+import {
+  User,
+  Mail,
+  Wallet,
+  Globe,
+  Save,
+  Check,
+  Radar,
+  Monitor,
+} from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function SettingsPage() {
-  return <SettingsContent />;
-}
-
-function SettingsContent() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { currentUser, updateProfile, languages } = useStore();
-  const currentLang = useLang();
-  const setLang = useSetLang();
-  const langs = useAvailableLangs();
-
   const [form, setForm] = useState({
-    firstName: currentUser?.firstName ?? "",
-    lastName: currentUser?.lastName ?? "",
-    email: currentUser?.email ?? "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    cryptoAddress: "",
+    cryptoNetwork: "",
+    cryptoName: "",
   });
-  const [cryptoAddress, setCryptoAddress] = useState(
-    currentUser?.cryptoAddress ?? ""
-  );
-  const [cryptoNetwork, setCryptoNetwork] = useState(
-    currentUser?.cryptoNetwork ?? "Ethereum (ERC-20)"
-  );
-  const [cryptoName, setCryptoName] = useState(
-    currentUser?.cryptoName ?? "USDT"
-  );
-  const [message, setMessage] = useState<{type: "success" | "error", text: string} | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [autoDetect, setAutoDetect] = useState(true);
+  const [detectedLang, setDetectedLang] = useState("");
 
-  const update = (key: keyof typeof form, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setMessage(null);
-  };
+  useEffect(() => {
+    if (currentUser) {
+      setForm({
+        firstName: currentUser.firstName || "",
+        lastName: currentUser.lastName || "",
+        email: currentUser.email || "",
+        cryptoAddress: currentUser.cryptoAddress || "",
+        cryptoNetwork: currentUser.cryptoNetwork || "",
+        cryptoName: currentUser.cryptoName || "",
+      });
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    setAutoDetect(isAutoDetectEnabled());
+    const browserLangs = getBrowserLanguages();
+    if (browserLangs.length > 0) {
+      setDetectedLang(browserLangs[0]);
+    }
+  }, []);
 
   const handleSave = () => {
-    if (!currentUser) return;
-    updateProfile({
-      firstName: form.firstName || currentUser.firstName,
-      lastName: form.lastName || currentUser.lastName,
-      email: form.email || currentUser.email,
-      cryptoAddress: cryptoAddress || currentUser.cryptoAddress,
-      cryptoNetwork: cryptoNetwork || currentUser.cryptoNetwork,
-      cryptoName: cryptoName || currentUser.cryptoName,
-    });
-    setMessage({ type: "success", text: t("settings.saved") });
-    setTimeout(() => setMessage(null), 4000);
+    updateProfile(form);
+    toast.success(t("settings.saved"));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleLanguageChange = (code: string) => {
+    changeLanguage(code);
+    setAutoDetect(false);
+  };
+
+  const handleAutoDetectToggle = () => {
+    const newAuto = !autoDetect;
+    setAutoDetect(newAuto);
+    if (newAuto) {
+      const detected = enableAutoDetect();
+      const lang = languages.find((l) => l.code === detected);
+      toast.success(
+        lang
+          ? `Switched to ${lang.name} based on your browser`
+          : `No match found — using English`
+      );
+    } else {
+      localStorage.setItem("portbuff-lang-auto", "false");
+    }
+  };
+
+  const enabledLanguages = languages.filter((l) => l.enabled);
+  const activeLang = enabledLanguages.find((l) => l.code === i18n.language);
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 },
   };
 
   return (
-    <div className="space-y-10">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gold-200">
+    <motion.div
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="space-y-6 max-w-2xl"
+    >
+      <motion.div variants={item}>
+        <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">
           {t("settings.title")}
         </h1>
-        <p className="mt-1 text-sm text-navy-300">
-          {t("settings.subtitle")}
-        </p>
-      </div>
+        <p className="text-surface-500 mt-1">{t("settings.subtitle")}</p>
+      </motion.div>
 
-      {message && (
-        <div
-          className={`flex items-start gap-3 rounded-xl p-4 text-sm ${
-            message.type === "success"
-              ? "bg-emerald-400/10 border border-emerald-400/20 text-emerald-300"
-              : "bg-red-400/10 border border-red-400/20 text-red-300"
-          }`}
-        >
-          {message.type === "success" ? (
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-          ) : (
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
-          )}
-          <span>{message.text}</span>
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="card p-5 sm:p-6">
-          <div className="mb-5 flex items-center gap-2 text-sm font-medium text-gold-200">
-            <Globe className="h-4 w-4 text-gold-400" aria-hidden />
-            {t("settings.language")}
-          </div>
-          <div className="space-y-3">
-            {langs.map((lang) => (
-              <button
-                key={lang.code}
-                onClick={() => setLang(lang.code)}
-                className={`w-full rounded-xl border px-4 py-3 text-left text-sm transition ${
-                  lang.code === currentLang
-                    ? "bg-gold-400/15 border-gold-400/40 text-gold-300"
-                    : "bg-navy-800/40 border-[rgba(255,215,120,0.1)] text-navy-300 hover:text-gold-300"
-                }`}
-              >
-                <span className="font-medium">{lang.nativeName}</span>
-                <span className="ml-2 text-xs text-navy-400">({lang.code})</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="card p-5 sm:p-6">
-          <h2 className="mb-5 text-sm font-medium text-gold-200">
-            {t("settings.personalInfo")}
-          </h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">
-                  {t("settings.firstName")}
-                </label>
+      <motion.div variants={item} className="card">
+        <h3 className="text-lg font-semibold text-surface-900 mb-4 flex items-center gap-2">
+          <User className="w-5 h-5 text-primary-600" />
+          {t("settings.personalInfo")}
+        </h3>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-surface-700 mb-1.5">
+                {t("settings.firstName")}
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
                 <input
                   type="text"
+                  className="input-field pl-10"
                   value={form.firstName}
-                  onChange={(e) => update("firstName", e.target.value)}
-                  className="input-field"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">
-                  {t("settings.lastName")}
-                </label>
-                <input
-                  type="text"
-                  value={form.lastName}
-                  onChange={(e) => update("lastName", e.target.value)}
-                  className="input-field"
+                  onChange={(e) =>
+                    setForm({ ...form, firstName: e.target.value })
+                  }
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-navy-300">
-                {t("settings.email")}
+            <div>
+              <label className="block text-sm font-medium text-surface-700 mb-1.5">
+                {t("settings.lastName")}
               </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                <input
+                  type="text"
+                  className="input-field pl-10"
+                  value={form.lastName}
+                  onChange={(e) =>
+                    setForm({ ...form, lastName: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-surface-700 mb-1.5">
+              {t("settings.email")}
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
               <input
                 type="email"
+                className="input-field pl-10"
                 value={form.email}
-                onChange={(e) => update("email", e.target.value)}
-                className="input-field"
+                onChange={(e) =>
+                  setForm({ ...form, email: e.target.value })
+                }
               />
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="card p-5 sm:p-6">
-        <h2 className="mb-5 text-sm font-medium text-gold-200">
+      <motion.div variants={item} className="card">
+        <h3 className="text-lg font-semibold text-surface-900 mb-4 flex items-center gap-2">
+          <Wallet className="w-5 h-5 text-primary-600" />
           {t("settings.cryptoInfo")}
-        </h2>
+        </h3>
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-navy-300">
+          <div>
+            <label className="block text-sm font-medium text-surface-700 mb-1.5">
               {t("settings.cryptoAddress")}
             </label>
             <input
               type="text"
-              value={cryptoAddress}
-              onChange={(e) => setCryptoAddress(e.target.value)}
               className="input-field font-mono text-sm"
+              value={form.cryptoAddress}
+              onChange={(e) =>
+                setForm({ ...form, cryptoAddress: e.target.value })
+              }
               placeholder="0x..."
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-navy-300">
-                {t("settings.cryptoName")}
-              </label>
-              <select
-                value={cryptoName}
-                onChange={(e) => setCryptoName(e.target.value)}
-                className="input-field"
-              >
-                {["USDT", "USDC", "BTC", "ETH", "BNB"].map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-navy-300">
+            <div>
+              <label className="block text-sm font-medium text-surface-700 mb-1.5">
                 {t("settings.cryptoNetwork")}
               </label>
               <select
-                value={cryptoNetwork}
-                onChange={(e) => setCryptoNetwork(e.target.value)}
                 className="input-field"
+                value={form.cryptoNetwork}
+                onChange={(e) =>
+                  setForm({ ...form, cryptoNetwork: e.target.value })
+                }
               >
-                {[
-                  "Ethereum (ERC-20)",
-                  "BSC (BEP-20)",
-                  "Tron (TRC-20)",
-                ].map((network) => (
-                  <option key={network} value={network}>
-                    {network}
-                  </option>
-                ))}
+                <option value="">Select network</option>
+                <option value="Ethereum (ERC-20)">Ethereum (ERC-20)</option>
+                <option value="BSC (BEP-20)">BSC (BEP-20)</option>
+                <option value="Tron (TRC-20)">Tron (TRC-20)</option>
+                <option value="Bitcoin">Bitcoin</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-700 mb-1.5">
+                {t("settings.cryptoName")}
+              </label>
+              <select
+                className="input-field"
+                value={form.cryptoName}
+                onChange={(e) =>
+                  setForm({ ...form, cryptoName: e.target.value })
+                }
+              >
+                <option value="">Select crypto</option>
+                <option value="USDT">USDT</option>
+                <option value="USDC">USDC</option>
+                <option value="BTC">BTC</option>
+                <option value="ETH">ETH</option>
               </select>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="flex justify-end">
-        <button onClick={handleSave} className="btn-primary">
-          <Save className="h-4 w-4" aria-hidden />
-          {t("settings.saveChanges")}
-        </button>
-      </div>
-    </div>
+      <motion.div variants={item} className="card">
+        <h3 className="text-lg font-semibold text-surface-900 mb-4 flex items-center gap-2">
+          <Globe className="w-5 h-5 text-primary-600" />
+          {t("settings.language")}
+        </h3>
+
+        <div className="mb-4 p-4 bg-surface-50 rounded-xl border border-surface-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                  autoDetect ? "bg-accent-100" : "bg-surface-200"
+                }`}
+              >
+                <Radar
+                  className={`w-4 h-4 ${
+                    autoDetect ? "text-accent-600" : "text-surface-500"
+                  }`}
+                />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-surface-900">
+                  Auto-detect language
+                </p>
+                <p className="text-xs text-surface-400">
+                  {autoDetect
+                    ? "Switches to match your browser's preferred language"
+                    : "Off — manual selection active"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleAutoDetectToggle}
+              className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                autoDetect ? "bg-accent-500" : "bg-surface-300"
+              }`}
+            >
+              <motion.div
+                className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow"
+                animate={{ left: autoDetect ? "26px" : "2px" }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+          {detectedLang && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-surface-400">
+              <Monitor className="w-3.5 h-3.5" />
+              <span>
+                Browser reports:{" "}
+                <span className="font-mono font-medium text-surface-600">
+                  {detectedLang}
+                </span>
+              </span>
+              {autoDetect && activeLang && (
+                <span className="text-accent-600 font-medium">
+                  → matched to {activeLang.name}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          {enabledLanguages.map((lang) => {
+            const isActive = i18n.language === lang.code;
+            return (
+              <button
+                key={lang.code}
+                onClick={() => handleLanguageChange(lang.code)}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${
+                  isActive
+                    ? "border-primary-500 bg-primary-50"
+                    : "border-surface-200 hover:border-primary-200"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
+                      isActive
+                        ? "bg-primary-100 text-primary-700"
+                        : "bg-surface-100 text-surface-500"
+                    }`}
+                  >
+                    {lang.nativeName.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-medium text-surface-900">
+                      {lang.name}
+                    </p>
+                    <p className="text-xs text-surface-400">
+                      {lang.nativeName}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isActive && autoDetect && (
+                    <span className="text-[10px] font-medium text-accent-600 bg-accent-100 px-1.5 py-0.5 rounded-full">
+                      AUTO
+                    </span>
+                  )}
+                  {isActive && (
+                    <Check className="w-5 h-5 text-primary-600" />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="mt-4 text-xs text-surface-400">
+          {autoDetect
+            ? "Auto-detect matches your browser's first preferred language against available languages. Turn it off to lock to a manual choice."
+            : "Pick a language above. Your choice is saved and remembered across visits."}
+        </p>
+      </motion.div>
+
+      <motion.div variants={item}>
+        <motion.button
+          onClick={handleSave}
+          className="btn-primary flex items-center gap-2"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          {saved ? (
+            <>
+              <Check className="w-4 h-4" />
+              Saved!
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              {t("settings.saveChanges")}
+            </>
+          )}
+        </motion.button>
+      </motion.div>
+    </motion.div>
   );
 }

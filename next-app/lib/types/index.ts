@@ -4,7 +4,7 @@ export interface User {
   lastName: string;
   email: string;
   password: string;
-  role: 'user' | 'admin';
+  role: "user" | "admin";
   balance: number;
   totalInvested: number;
   totalEarned: number;
@@ -12,7 +12,7 @@ export interface User {
   cryptoAddress?: string;
   cryptoNetwork?: string;
   cryptoName?: string;
-  status: 'active' | 'blocked';
+  status: "active" | "blocked";
   createdAt: string;
   investmentId?: string;
 }
@@ -40,18 +40,18 @@ export interface Investment {
   endDate: string;
   estimatedProfit: number;
   currentProfit: number;
-  status: 'active' | 'completed' | 'cancelled';
+  status: "active" | "completed" | "cancelled";
 }
 
 export interface Transaction {
   id: string;
   userId: string;
-  type: 'deposit' | 'withdrawal';
+  type: "deposit" | "withdrawal";
   amount: number;
   cryptoName: string;
   cryptoNetwork: string;
   cryptoAddress: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   createdAt: string;
   processedAt?: string;
   adminNote?: string;

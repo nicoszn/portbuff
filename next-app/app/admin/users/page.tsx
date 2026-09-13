@@ -1,303 +1,281 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useStore } from "@/lib/stores/useStore";
-import AdminLayout from "@/components/layout/AdminLayout";
-import { motion } from "framer-motion";
-import { UserPlus, Search, Ban, Check, Trash2, AlertCircle, Shield } from "lucide-react";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useStore } from "@/lib/store/useStore";
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Edit2, Trash2, Ban, CheckCircle, X, Search, User } from 'lucide-react';
+import { formatDate, formatCurrency, generateId } from "@/lib/utils/helpers";
+import toast from 'react-hot-toast';
 
-export default function AdminUsersPage() {
-  return (
-    <AdminLayout>
-      <AdminUsersContent />
-    </AdminLayout>
-  );
-}
-
-function AdminUsersContent() {
+export default function AdminUsers() {
   const { t } = useTranslation();
-  const {
-    users,
-    addUser,
-    updateUser,
-    deleteUser,
-  } = useStore();
-
-  const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"list" | "create">("list");
+  const { users, addUser, updateUser, deleteUser } = useStore();
+  const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<string | null>(null);
   const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    role: "user" as "user" | "admin",
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    role: 'user' as 'user' | 'admin',
+    balance: 0,
+    status: 'active' as 'active' | 'blocked',
   });
-  const [message, setMessage] = useState<{type: "success" | "error", text: string} | null>(null);
 
-  const filtered =
-    search.trim() === ""
-      ? users
-      : users.filter(
-          (u) =>
-            u.email.toLowerCase().includes(search.toLowerCase()) ||
-            `${u.firstName} ${u.lastName}`
-              .toLowerCase()
-              .includes(search.toLowerCase())
-        );
+  const regularUsers = users.filter(
+    (u) =>
+      u.role === 'user' &&
+      (u.firstName.toLowerCase().includes(search.toLowerCase()) ||
+        u.lastName.toLowerCase().includes(search.toLowerCase()) ||
+        u.email.toLowerCase().includes(search.toLowerCase()))
+  );
 
-  const createUser = () => {
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.password.trim()) {
-      setMessage({ type: "error", text: t("common.error") });
-      return;
-    }
-    if (form.password.length < 6) {
-      setMessage({ type: "error", text: "Password must be at least 6 characters" });
-      return;
-    }
-    if (users.find((u) => u.email === form.email)) {
-      setMessage({ type: "error", text: "Email already exists" });
-      return;
-    }
-    addUser({
-      id: `user-${Date.now()}`,
-      firstName: form.firstName,
-      lastName: form.lastName,
-      email: form.email,
-      password: form.password,
-      role: form.role,
-      balance: 0,
-      totalInvested: 0,
-      totalEarned: 0,
-      currentProfit: 0,
-      status: "active",
-      createdAt: new Date().toISOString(),
-    });
-    setMessage({ type: "success", text: `${form.firstName} ${form.lastName} created` });
-    setForm({ firstName: "", lastName: "", email: "", password: "", role: "user" });
-    setTimeout(() => setMessage(null), 3000);
+  const openCreate = () => {
+    setEditingUser(null);
+    setForm({ firstName: '', lastName: '', email: '', password: '', role: 'user', balance: 0, status: 'active' });
+    setShowModal(true);
   };
 
-  const toggleStatus = (id: string) => {
-    const user = users.find((u) => u.id === id);
+  const openEdit = (userId: string) => {
+    const user = users.find((u) => u.id === userId);
     if (!user) return;
-    updateUser(id, { status: user.status === "active" ? "blocked" : "active" });
-    setMessage({
-      type: "success",
-      text: `${user.firstName} ${user.lastName} ${user.status === "active" ? "blocked" : "unblocked"}`,
+    setEditingUser(userId);
+    setForm({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      password: user.password,
+      role: user.role,
+      balance: user.balance,
+      status: user.status,
     });
-    setTimeout(() => setMessage(null), 3000);
+    setShowModal(true);
+  };
+
+  const handleSave = () => {
+    if (editingUser) {
+      updateUser(editingUser, form);
+      toast.success('User updated!');
+    } else {
+      addUser({
+        id: generateId(),
+        ...form,
+        totalInvested: 0,
+        totalEarned: 0,
+        currentProfit: 0,
+        createdAt: new Date().toISOString(),
+      });
+      toast.success('User created!');
+    }
+    setShowModal(false);
+  };
+
+  const toggleBlock = (userId: string) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+    updateUser(userId, { status: user.status === 'active' ? 'blocked' : 'active' });
+    toast.success(user.status === 'active' ? 'User blocked!' : 'User unblocked!');
+  };
+
+  const handleDelete = (userId: string) => {
+    if (window.confirm(t('admin.confirmDelete'))) {
+      deleteUser(userId);
+      toast.success('User deleted!');
+    }
+  };
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0 },
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gold-200">
-            {t("admin.users")}
-          </h1>
-          <p className="mt-1 text-sm text-navy-300">
-            {t("admin.manageUsers")}
-          </p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">{t('admin.manageUsers')}</h1>
+          <p className="text-surface-500 mt-1">{regularUsers.length} users total</p>
         </div>
-        <button
-          onClick={() => setActiveTab("create")}
-          className="btn-primary"
-        >
-          <UserPlus className="h-4 w-4" aria-hidden />
-          {t("admin.createUser")}
-        </button>
-      </div>
+        <motion.button onClick={openCreate} className="btn-primary flex items-center gap-2" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Plus className="w-4 h-4" />
+          {t('admin.createUser')}
+        </motion.button>
+      </motion.div>
 
-      {message && (
-        <div
-          className={`flex items-start gap-3 rounded-xl p-4 text-sm ${
-            message.type === "success"
-              ? "bg-emerald-400/10 border border-emerald-400/20 text-emerald-300"
-              : "bg-red-400/10 border border-red-400/20 text-red-300"
-          }`}
-        >
-          {message.type === "success" ? (
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-          ) : (
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
-          )}
-          <span>{message.text}</span>
-        </div>
-      )}
-
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-400" aria-hidden />
+      {/* Search */}
+      <motion.div variants={item} className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
         <input
-          type="search"
+          type="text"
+          className="input-field pl-10"
+          placeholder={t('common.search')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("common.search") || "Search users..."}
-          className="input-field pl-10"
         />
-      </div>
+      </motion.div>
 
-      {activeTab === "create" ? (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card p-6"
-        >
-          <h2 className="mb-5 text-lg font-semibold text-gold-200">
-            {t("admin.createUser")}
-          </h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">{t("settings.firstName")}</label>
-                <input
-                  type="text"
-                  value={form.firstName}
-                  onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-                  className="input-field"
-                  placeholder="Alex"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">{t("settings.lastName")}</label>
-                <input
-                  type="text"
-                  value={form.lastName}
-                  onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-                  className="input-field"
-                  placeholder="Rivera"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-navy-300">{t("settings.email")}</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="input-field"
-                placeholder="alex@portbuff.com"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">Password</label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  className="input-field"
-                  placeholder="Min 6 characters"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-navy-300">Role</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as "user" | "admin" }))}
-                  className="input-field"
+      {/* Users Table */}
+      <motion.div variants={item} className="card overflow-hidden p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-surface-400 bg-surface-50 border-b border-surface-100">
+                <th className="px-6 py-3 font-medium">User</th>
+                <th className="px-6 py-3 font-medium hidden sm:table-cell">Balance</th>
+                <th className="px-6 py-3 font-medium hidden md:table-cell">Invested</th>
+                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {regularUsers.map((user, i) => (
+                <motion.tr
+                  key={user.id}
+                  variants={item}
+                  className="border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors"
                 >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setActiveTab("list");
-                  setMessage(null);
-                }}
-                className="btn-outline"
-              >
-                {t("common.cancel")}
-              </button>
-              <button onClick={createUser} className="btn-primary">
-                {t("admin.createUser")}
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.length === 0 ? (
-            <div className="flex h-40 items-center justify-center rounded-2xl border border-[rgba(255,215,120,0.12)] bg-navy-900/70 text-center text-sm text-navy-400 backdrop-blur-sm">
-              {t("common.noResults") || "No users found"}
-            </div>
-          ) : (
-            filtered.map((user, idx) => (
-              <motion.div
-                key={user.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.02, duration: 0.25 }}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[rgba(255,215,120,0.1)] bg-navy-900/70 p-4 sm:p-5 backdrop-blur-sm"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-gold-300/20 to-amber-500/20 text-sm font-bold text-gold-300">
-                    {user.firstName?.charAt(0)}
-                    {user.lastName?.charAt(0)}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-primary-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-surface-900">{user.firstName} {user.lastName}</p>
+                        <p className="text-xs text-surface-400">{user.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 hidden sm:table-cell font-medium">{formatCurrency(user.balance)}</td>
+                  <td className="px-6 py-4 hidden md:table-cell text-surface-600">{formatCurrency(user.totalInvested)}</td>
+                  <td className="px-6 py-4">
+                    <span className={user.status === 'active' ? 'badge-success' : 'badge-danger'}>
+                      {user.status === 'active' ? t('common.active') : t('common.blocked')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEdit(user.id)}
+                        className="p-1.5 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title={t('admin.editUser')}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => toggleBlock(user.id)}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          user.status === 'active'
+                            ? 'text-surface-400 hover:text-amber-600 hover:bg-amber-50'
+                            : 'text-surface-400 hover:text-accent-600 hover:bg-accent-50'
+                        }`}
+                        title={user.status === 'active' ? t('admin.blockUser') : t('admin.unblockUser')}
+                      >
+                        {user.status === 'active' ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(user.id)}
+                        className="p-1.5 text-surface-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title={t('admin.deleteUser')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
+
+      {/* Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="modal-overlay"
+            onClick={() => setShowModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="modal-content"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-surface-900">
+                    {editingUser ? t('admin.editUser') : t('admin.createUser')}
+                  </h3>
+                  <button onClick={() => setShowModal(false)} className="text-surface-400 hover:text-surface-600">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 mb-1">{t('auth.firstName')}</label>
+                      <input type="text" className="input-field" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 mb-1">{t('auth.lastName')}</label>
+                      <input type="text" className="input-field" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+                    </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-navy-200">
-                      {user.firstName} {user.lastName}
+                    <label className="block text-sm font-medium text-surface-700 mb-1">{t('auth.email')}</label>
+                    <input type="email" className="input-field" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-1">{t('auth.password')}</label>
+                    <input type="text" className="input-field" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 mb-1">Balance (USD)</label>
+                      <input type="number" className="input-field" value={form.balance} onChange={(e) => setForm({ ...form, balance: parseFloat(e.target.value) || 0 })} />
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-navy-400">
-                      <span className="font-mono">{user.email}</span>
-                      {user.role === "admin" && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gold-400/10 px-2 py-0.5 text-gold-400">
-                          <Shield className="h-3 w-3" aria-hidden />
-                          Admin
-                        </span>
-                      )}
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 mb-1">Role</label>
+                      <select className="input-field" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as 'user' | 'admin' })}>
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-1">Status</label>
+                    <select className="input-field" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as 'active' | 'blocked' })}>
+                      <option value="active">Active</option>
+                      <option value="blocked">Blocked</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs uppercase ${
-                    user.status === "active" ? "text-emerald-400" : "text-red-400"
-                  }`}>
-                    {user.status}
-                  </span>
-                  <button
-                    onClick={() => toggleStatus(user.id)}
-                    className={`flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-medium transition ${
-                      user.status === "active"
-                        ? "bg-red-400/10 text-red-400 hover:bg-red-400/20"
-                        : "bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20"
-                    }`}
-                  >
-                    {user.status === "active" ? (
-                      <>
-                        <Ban className="h-3.5 w-3.5" aria-hidden />
-                        {t("admin.blockUser")}
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-3.5 w-3.5" aria-hidden />
-                        {t("admin.unblockUser")}
-                      </>
-                    )}
+
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setShowModal(false)} className="flex-1 btn-secondary">
+                    {t('common.cancel')}
                   </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(t("admin.confirmDelete"))) {
-                        deleteUser(user.id);
-                        setMessage({ type: "success", text: `User deleted` });
-                        setTimeout(() => setMessage(null), 3000);
-                      }
-                    }}
-                    className="flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-medium text-red-400 transition hover:bg-red-400/10"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                    {t("admin.deleteUser")}
+                  <button onClick={handleSave} className="flex-1 btn-primary">
+                    {editingUser ? t('common.save') : t('common.create')}
                   </button>
                 </div>
-              </motion.div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

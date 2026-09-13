@@ -1,123 +1,168 @@
 "use client";
 
-import { useTranslation } from "react-i18next";
-import { useStore } from "@/lib/stores/useStore";
-import AdminLayout from "@/components/layout/AdminLayout";
-import { format } from "date-fns";
-import { motion } from "framer-motion";
-import { formatCurrency } from "@/lib/utils/helpers";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useStore } from "@/lib/store/useStore";
+import { motion, AnimatePresence } from 'framer-motion';
+import { Edit2, Trash2, X, TrendingUp } from 'lucide-react';
+import { formatCurrency, formatDate, generateId } from "@/lib/utils/helpers";
+import toast from 'react-hot-toast';
 
-export default function AdminInvestmentsPage() {
-  return (
-    <AdminLayout>
-      <AdminInvestmentsContent />
-    </AdminLayout>
-  );
-}
-
-function AdminInvestmentsContent() {
+export default function AdminInvestments() {
   const { t } = useTranslation();
-  const { investments, users, plans } = useStore();
+  const { investments, users, plans, updateInvestment, deleteInvestment } = useStore();
+  const [editingInvestment, setEditingInvestment] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    amount: 0,
+    dailyPercentage: 0,
+    days: 4,
+    status: 'active' as 'active' | 'completed' | 'cancelled',
+  });
 
-  const sorted = [...investments].sort(
-    (a, b) =>
-      new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
-  );
+  const investmentsWithDetails = investments.map((inv) => ({
+    ...inv,
+    user: users.find((u) => u.id === inv.userId),
+    plan: plans.find((p) => p.id === inv.planId),
+  }));
 
-  const statusColors: Record<string, string> = {
-    active: "bg-emerald-400/20 text-emerald-400",
-    completed: "bg-blue-400/20 text-blue-400",
-    cancelled: "bg-red-400/20 text-red-400",
+  const openEdit = (invId: string) => {
+    const inv = investments.find((i) => i.id === invId);
+    if (!inv) return;
+    setEditingInvestment(invId);
+    setForm({ amount: inv.amount, dailyPercentage: inv.dailyPercentage, days: inv.days, status: inv.status });
   };
 
-  const getUserName = (userId: string) => {
-    const owner = users.find((u) => u.id === userId);
-    if (!owner) return userId;
-    return `${owner.firstName} ${owner.lastName}`;
+  const handleSave = () => {
+    if (!editingInvestment) return;
+    updateInvestment(editingInvestment, form);
+    toast.success('Investment updated!');
+    setEditingInvestment(null);
   };
 
-  const getPlanName = (planId: string) => {
-    const plan = plans.find((p) => p.id === planId);
-    return plan?.name ?? planId;
+  const handleDelete = (invId: string) => {
+    if (window.confirm(t('admin.confirmDelete'))) {
+      deleteInvestment(invId);
+      toast.success('Investment deleted!');
+    }
+  };
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0 },
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gold-200">
-          {t("admin.investments")}
-        </h1>
-        <p className="mt-1 text-sm text-navy-300">
-          {investments.length} total
-        </p>
-      </div>
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      <motion.div variants={item}>
+        <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">{t('admin.investments')}</h1>
+        <p className="text-surface-500 mt-1">{investments.length} investments total</p>
+      </motion.div>
 
-      {sorted.length === 0 ? (
-        <div className="flex h-40 items-center justify-center rounded-2xl border border-[rgba(255,215,120,0.12)] bg-navy-900/70 text-center text-sm text-navy-400 backdrop-blur-sm">
-          No investments yet
+      <motion.div variants={item} className="card overflow-hidden p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-surface-400 bg-surface-50 border-b border-surface-100">
+                <th className="px-6 py-3 font-medium">User</th>
+                <th className="px-6 py-3 font-medium">Plan</th>
+                <th className="px-6 py-3 font-medium">Amount</th>
+                <th className="px-6 py-3 font-medium hidden sm:table-cell">Daily %</th>
+                <th className="px-6 py-3 font-medium hidden md:table-cell">Dates</th>
+                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {investmentsWithDetails.map((inv) => (
+                <tr key={inv.id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <p className="font-medium text-surface-900">{inv.user?.firstName} {inv.user?.lastName}</p>
+                    <p className="text-xs text-surface-400">{inv.user?.email}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <span>{inv.plan?.icon}</span>
+                      <span className="font-medium">{inv.plan?.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 font-semibold">{formatCurrency(inv.amount)}</td>
+                  <td className="px-6 py-4 hidden sm:table-cell text-accent-600 font-medium">{inv.dailyPercentage}%</td>
+                  <td className="px-6 py-4 hidden md:table-cell text-surface-500 text-xs">
+                    {formatDate(inv.startDate)} - {formatDate(inv.endDate)}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={
+                      inv.status === 'active' ? 'badge-success' :
+                      inv.status === 'completed' ? 'badge-info' : 'badge-danger'
+                    }>
+                      {inv.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => openEdit(inv.id)} className="p-1.5 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(inv.id)} className="p-1.5 text-surface-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {sorted.map((inv, idx) => {
-            const daysLeft = Math.max(
-              0,
-              Math.ceil(
-                (new Date(inv.endDate).getTime() - Date.now()) /
-                  (24 * 60 * 60 * 1000)
-              )
-            );
-            return (
-              <motion.div
-                key={inv.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.02, duration: 0.25 }}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[rgba(255,215,120,0.1)] bg-navy-900/70 p-4 sm:p-5 backdrop-blur-sm"
-              >
-                <div>
-                  <div className="text-sm font-medium text-navy-200">
-                    {getPlanName(inv.planId)}
-                    {" · "}
-                    {formatCurrency(inv.amount)}
-                  </div>
-                  <div className="mt-0.5 text-xs text-navy-400">
-                    {getUserName(inv.userId)} · {inv.dailyPercentage}% daily ·{" "}
-                    {inv.days} days
-                  </div>
+      </motion.div>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editingInvestment && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="modal-overlay" onClick={() => setEditingInvestment(null)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-surface-900">{t('admin.editInvestment')}</h3>
+                  <button onClick={() => setEditingInvestment(null)} className="text-surface-400 hover:text-surface-600"><X className="w-5 h-5" /></button>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right text-xs text-navy-400">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-1">Amount (USD)</label>
+                    <input type="number" className="input-field" value={form.amount} onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      {format(new Date(inv.startDate), "MMM d")} →{" "}
-                      {format(new Date(inv.endDate), "MMM d, yyyy")}
+                      <label className="block text-sm font-medium text-surface-700 mb-1">Daily %</label>
+                      <input type="number" className="input-field" value={form.dailyPercentage} onChange={(e) => setForm({ ...form, dailyPercentage: parseFloat(e.target.value) || 0 })} step="0.1" />
                     </div>
-                    <div className="mt-0.5">
-                      {inv.status === "active"
-                        ? `${daysLeft} days left`
-                        : "—"}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-emerald-400">
-                      {formatCurrency(inv.currentProfit)}
-                    </div>
-                    <div className="text-xs text-navy-400">
-                      est. {formatCurrency(inv.estimatedProfit)}
+                    <div>
+                      <label className="block text-sm font-medium text-surface-700 mb-1">Days</label>
+                      <input type="number" className="input-field" value={form.days} onChange={(e) => setForm({ ...form, days: parseInt(e.target.value) || 4 })} />
                     </div>
                   </div>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium uppercase ${
-                      statusColors[inv.status] ?? "text-navy-400"
-                    }`}
-                  >
-                    {inv.status}
-                  </span>
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-1">Status</label>
+                    <select className="input-field" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as 'active' | 'completed' | 'cancelled' })}>
+                      <option value="active">Active</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
                 </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setEditingInvestment(null)} className="flex-1 btn-secondary">{t('common.cancel')}</button>
+                  <button onClick={handleSave} className="flex-1 btn-primary">{t('common.save')}</button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

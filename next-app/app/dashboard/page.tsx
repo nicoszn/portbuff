@@ -1,8 +1,17 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useStore } from "@/lib/stores/useStore";
-import { format } from "date-fns";
+import { useStore } from "@/lib/store/useStore";
+import { motion } from "framer-motion";
+import {
+  Wallet,
+  TrendingUp,
+  DollarSign,
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -15,333 +24,449 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { formatCurrency, formatDate } from "@/lib/utils/helpers";
 import {
-  TrendingUp,
-  Wallet,
-  PiggyBank,
-  Activity,
-  DollarSign,
-} from "lucide-react";
+  generatePortfolioChartData,
+  generateProfitChartData,
+} from "@/lib/mock/data";
 import Link from "next/link";
-import { generateProfitChartData } from "@/lib/data";
-import { formatCurrency } from "@/lib/utils/helpers";
 
-const COLORS = [
-  "#e0a523",
-  "#34d399",
-  "#60a5fa",
-  "#a78bfa",
-  "#fbbf24",
-  "#f59e0b",
-];
+const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"];
 
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { currentUser, investments, transactions, plans } = useStore();
 
-  const balance = currentUser?.balance ?? 0;
-  const invested = currentUser?.totalInvested ?? 0;
-  const earned = currentUser?.totalEarned ?? 0;
-  const currentProfit = currentUser?.currentProfit ?? 0;
-  const activeInvestmentCount = investments.filter(
-    (i) => i.status === "active"
-  ).length;
+  const portfolioData = useMemo(() => generatePortfolioChartData(), []);
+  const profitData = useMemo(() => generateProfitChartData(), []);
 
-  const profitChartData = generateProfitChartData();
-
-  const portfolioChartData = plans
-    .map((plan, index) => {
-      const planInvestments = investments.filter(
-        (inv) => inv.planId === plan.id && inv.status === "active"
-      );
-      const total = planInvestments.reduce((sum, inv) => sum + inv.amount, 0);
-      if (total === 0) return null;
-      return {
-        name: plan.name,
-        value: total,
-        color: COLORS[index % COLORS.length],
-      };
-    })
-    .filter(Boolean) as { name: string; value: number; color: string }[];
-
-  const recentTransactions = [...transactions]
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
-    .slice(0, 6);
-
-  const activeInvestments = investments.filter(
-    (i) => i.status === "active"
+  const userInvestments = useMemo(
+    () =>
+      investments.filter(
+        (i) => i.userId === currentUser?.id && i.status === "active"
+      ),
+    [investments, currentUser]
   );
 
+  const userTransactions = useMemo(
+    () =>
+      transactions
+        .filter((tx) => tx.userId === currentUser?.id)
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        .slice(0, 5),
+    [transactions, currentUser]
+  );
+
+  const pieData = useMemo(
+    () =>
+      userInvestments.map((inv) => {
+        const plan = plans.find((p) => p.id === inv.planId);
+        return { name: plan?.name || "Unknown", value: inv.amount };
+      }),
+    [userInvestments, plans]
+  );
+
+  const stats = [
+    {
+      label: t("dashboard.balance"),
+      value: formatCurrency(currentUser?.balance || 0),
+      icon: Wallet,
+      bg: "bg-blue-50",
+      iconColor: "text-blue-600",
+    },
+    {
+      label: t("dashboard.invested"),
+      value: formatCurrency(currentUser?.totalInvested || 0),
+      icon: TrendingUp,
+      bg: "bg-purple-50",
+      iconColor: "text-purple-600",
+    },
+    {
+      label: t("dashboard.currentProfit"),
+      value: formatCurrency(currentUser?.currentProfit || 0),
+      icon: DollarSign,
+      bg: "bg-accent-50",
+      iconColor: "text-accent-600",
+    },
+    {
+      label: t("dashboard.totalEarned"),
+      value: formatCurrency(currentUser?.totalEarned || 0),
+      icon: BarChart3,
+      bg: "bg-amber-50",
+      iconColor: "text-amber-600",
+    },
+  ];
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 },
+  };
+
   return (
-    <div className="space-y-10">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gold-200">
-          {t("dashboard.title")}
+    <motion.div
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="space-y-6"
+    >
+      <motion.div variants={item}>
+        <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">
+          {t("dashboard.welcome")}, {currentUser?.firstName}!
         </h1>
-        <p className="mt-1 text-sm text-navy-300">
-          {t("dashboard.welcome")}, {currentUser?.firstName}
+        <p className="text-surface-500 mt-1">
+          {t("dashboard.portfolioOverview")}
         </p>
-      </div>
+      </motion.div>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="card p-5 sm:p-6">
-          <div className="mb-3 flex items-center gap-2 text-sm text-navy-400">
-            <Wallet className="h-4 w-4 text-gold-400" aria-hidden />
-            {t("dashboard.balance")}
+      <motion.div
+        variants={item}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="stat-card group hover:shadow-md transition-all"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div
+                className={`w-10 h-10 ${stat.bg} rounded-xl flex items-center justify-center`}
+              >
+                <stat.icon className={`w-5 h-5 ${stat.iconColor}`} />
+              </div>
+            </div>
+            <p className="text-xs text-surface-400 font-medium uppercase tracking-wide">
+              {stat.label}
+            </p>
+            <p className="text-xl lg:text-2xl font-bold text-surface-900 mt-1">
+              {stat.value}
+            </p>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-gold-200">
-            {formatCurrency(balance)}
-          </div>
-          <div className="mt-1 flex items-center gap-1 text-xs text-emerald-400">
-            <TrendingUp className="h-3 w-3" aria-hidden />
-            {t("dashboard.balance")}
-          </div>
-        </div>
-        <div className="card p-5 sm:p-6">
-          <div className="mb-3 flex items-center gap-2 text-sm text-navy-400">
-            <PiggyBank className="h-4 w-4 text-gold-400" aria-hidden />
-            {t("dashboard.invested")}
-          </div>
-          <div className="text-2xl font-bold tracking-tight text-gold-200">
-            {formatCurrency(invested)}
-          </div>
-          <div className="mt-1 text-xs text-navy-400">
-            across {investments.length} investments
-          </div>
-        </div>
-        <div className="card p-5 sm:p-6">
-          <div className="mb-3 flex items-center gap-2 text-sm text-navy-400">
-            <TrendingUp className="h-4 w-4 text-emerald-400" aria-hidden />
-            {t("dashboard.currentProfit")}
-          </div>
-          <div className="text-2xl font-bold tracking-tight text-emerald-400">
-            {formatCurrency(currentProfit)}
-          </div>
-          <div className="mt-1 flex items-center gap-1 text-xs text-navy-400">
-            <DollarSign className="h-3 w-3" aria-hidden />
-            {t("dashboard.totalEarned")}: {formatCurrency(earned)}
-          </div>
-        </div>
-        <div className="card p-5 sm:p-6">
-          <div className="mb-3 flex items-center gap-2 text-sm text-navy-400">
-            <Activity className="h-4 w-4 text-cyan-400" aria-hidden />
-            {t("dashboard.activeInvestments")}
-          </div>
-          <div className="text-2xl font-bold tracking-tight text-cyan-400">
-            {activeInvestmentCount}
-          </div>
-          <div className="mt-1 text-xs text-navy-400">
-            {investments.filter((i) => i.status === "active").length} active ·{" "}
-            {investments.filter((i) => i.status === "completed").length}{" "}
-            completed
-          </div>
-        </div>
-      </div>
+        ))}
+      </motion.div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="card p-5 sm:p-6">
-          <h2 className="mb-4 text-lg font-semibold text-gold-200">
-            {t("dashboard.profitTrend")}
-          </h2>
-          <div className="h-64 sm:h-72 rounded-xl bg-navy-800/30 border border-[rgba(255,215,120,0.08)] p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <motion.div variants={item} className="lg:col-span-2 card">
+          <h3 className="text-lg font-semibold text-surface-900 mb-4">
+            {t("dashboard.portfolioOverview")}
+          </h3>
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={profitChartData}>
+              <AreaChart data={portfolioData}>
                 <defs>
-                  <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#34d399" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                  <linearGradient
+                    id="colorBalance"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="5%"
+                      stopColor="#3b82f6"
+                      stopOpacity={0.2}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor="#3b82f6"
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+                  <linearGradient
+                    id="colorProfit"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="5%"
+                      stopColor="#10b981"
+                      stopOpacity={0.2}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor="#10b981"
+                      stopOpacity={0}
+                    />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,215,120,0.08)" vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: "#a8a4b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#a8a4b8", fontSize: 11 }} axisLine={false} tickLine={false} domain={["auto", "auto"]} />
-                <Tooltip contentStyle={{ backgroundColor: "#0d1028", border: "1px solid rgba(255,215,120,0.2)", borderRadius: "10px", color: "#f5f3e8" }} />
-                <Area type="monotone" dataKey="profit" stroke="#34d399" strokeWidth={2} fill="url(#profitGrad)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
+                <YAxis stroke="#94a3b8" fontSize={12} />
+                <Tooltip
+                  contentStyle={{
+                    background: "white",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "12px",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="balance"
+                  stroke="#3b82f6"
+                  fill="url(#colorBalance)"
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="profit"
+                  stroke="#10b981"
+                  fill="url(#colorProfit)"
+                  strokeWidth={2}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="card p-5 sm:p-6">
-          <h2 className="mb-4 text-lg font-semibold text-gold-200">
-            {t("dashboard.portfolioOverview")}
-          </h2>
-          {portfolioChartData.length === 0 ? (
-            <div className="flex h-64 items-center justify-center text-sm text-navy-400">
+        <motion.div variants={item} className="card">
+          <h3 className="text-lg font-semibold text-surface-900 mb-4">
+            {t("dashboard.activeInvestments")}
+          </h3>
+          {pieData.length > 0 ? (
+            <>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {pieData.map((_, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-2 mt-4">
+                {pieData.map((entry, i) => (
+                  <div
+                    key={entry.name}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{
+                          backgroundColor: COLORS[i % COLORS.length],
+                        }}
+                      />
+                      <span className="text-surface-600">{entry.name}</span>
+                    </div>
+                    <span className="font-medium text-surface-900">
+                      {formatCurrency(entry.value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-48 flex items-center justify-center text-surface-400 text-sm">
               {t("dashboard.noInvestments")}
             </div>
-          ) : (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={portfolioChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius="70%"
-                    innerRadius="45%"
-                    paddingAngle={2}
+          )}
+        </motion.div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div variants={item} className="card">
+          <h3 className="text-lg font-semibold text-surface-900 mb-4">
+            {t("dashboard.profitTrend")}
+          </h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={profitData}>
+                <defs>
+                  <linearGradient
+                    id="colorProfitTrend"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
                   >
-                    {portfolioChartData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                        stroke="transparent"
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: "#0d1028", border: "1px solid rgba(255,215,120,0.2)", borderRadius: "10px", color: "#f5f3e8" }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-          {portfolioChartData.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-3">
-              {portfolioChartData.map((item) => (
-                <div key={item.name} className="flex items-center gap-2 text-xs text-navy-300">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span>{item.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+                    <stop
+                      offset="5%"
+                      stopColor="#10b981"
+                      stopOpacity={0.3}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor="#10b981"
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
+                <YAxis stroke="#94a3b8" fontSize={12} />
+                <Tooltip
+                  contentStyle={{
+                    background: "white",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "12px",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="cumulative"
+                  stroke="#10b981"
+                  fill="url(#colorProfitTrend)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
 
-      <div className="card p-5 sm:p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gold-200">
+        <motion.div variants={item} className="card">
+          <h3 className="text-lg font-semibold text-surface-900 mb-4">
             {t("dashboard.activeInvestments")}
-          </h2>
-          <Link
-            href="/dashboard/plans"
-            className="text-sm text-gold-400 transition hover:text-gold-300"
-          >
-            {t("dashboard.startInvesting")} {">"}
-          </Link>
-        </div>
-        {activeInvestments.length === 0 ? (
-          <div className="mt-6 flex h-40 flex-col items-center justify-center gap-3 text-sm text-navy-400">
-            {t("dashboard.noInvestments")}
-            <Link href="/dashboard/plans" className="btn-primary text-sm">
-              {t("dashboard.startInvesting")}
-            </Link>
-          </div>
-        ) : (
-          <div className="mt-4 space-y-2">
-            {activeInvestments.map((inv) => {
-              const plan = plans.find((p) => p.id === inv.planId);
-              const daysLeft = Math.max(
-                0,
-                Math.ceil(
-                  (new Date(inv.endDate).getTime() - Date.now()) /
-                    (24 * 60 * 60 * 1000)
-                )
-              );
-              return (
-                <div
-                  key={inv.id}
-                  className="flex items-center justify-between rounded-xl bg-navy-800/30 border border-[rgba(255,215,120,0.08)] px-4 py-3"
-                >
-                  <div>
-                    <div className="text-sm text-navy-200">
-                      {plan?.name ?? inv.planId}
-                      {" · "}
-                      {formatCurrency(inv.amount)}
+          </h3>
+          <div className="space-y-3">
+            {userInvestments.length > 0 ? (
+              userInvestments.map((inv) => {
+                const plan = plans.find((p) => p.id === inv.planId);
+                const progress =
+                  ((new Date().getTime() -
+                    new Date(inv.startDate).getTime()) /
+                    (new Date(inv.endDate).getTime() -
+                      new Date(inv.startDate).getTime())) *
+                  100;
+                return (
+                  <div key={inv.id} className="p-4 bg-surface-50 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-surface-900">
+                        {plan?.name || "Plan"}
+                      </span>
+                      <span className="text-sm font-medium text-accent-600">
+                        {formatCurrency(inv.currentProfit)}
+                      </span>
                     </div>
-                    <div className="text-xs text-navy-400">
-                      {inv.days} {t("plans.days").toLowerCase()} ·{" "}
-                      {inv.dailyPercentage}% {t("plans.dailyReturn").toLowerCase()}
+                    <div className="flex items-center justify-between text-xs text-surface-400 mb-2">
+                      <span>{formatCurrency(inv.amount)} invested</span>
+                      <span>{inv.dailyPercentage}% daily</span>
+                    </div>
+                    <div className="w-full bg-surface-200 rounded-full h-1.5">
+                      <div
+                        className="bg-gradient-to-r from-primary-500 to-accent-500 h-1.5 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(progress, 100)}%`,
+                        }}
+                      />
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-emerald-400">
-                      +{formatCurrency(inv.currentProfit)}
-                    </div>
-                    <div className="text-xs text-navy-400">
-                      {daysLeft > 0
-                        ? `${daysLeft} ${t("dashboard.daysLeft")}`
-                        : t("dashboard.daysCompleted")}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-surface-400 text-sm">
+                {t("dashboard.noInvestments")}
+              </div>
+            )}
           </div>
-        )}
+        </motion.div>
       </div>
 
-      <div className="card p-5 sm:p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gold-200">
+      <motion.div variants={item} className="card">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-surface-900">
             {t("dashboard.recentTransactions")}
-          </h2>
+          </h3>
           <Link
             href="/dashboard/transactions"
-            className="text-sm text-gold-400 transition hover:text-gold-300"
+            className="text-sm font-medium text-primary-600 hover:text-primary-700"
           >
-            {t("dashboard.viewAll")} {">"}
+            {t("dashboard.viewAll")}
           </Link>
         </div>
-        {recentTransactions.length === 0 ? (
-          <div className="mt-6 flex h-40 items-center justify-center text-sm text-navy-400">
-            {t("transactions.noTransactions")}
-          </div>
-        ) : (
-          <div className="mt-4 space-y-2">
-            {recentTransactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex items-center justify-between rounded-xl bg-navy-800/30 border border-[rgba(255,215,120,0.08)] px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`h-2 w-2 rounded-full ${
-                      tx.type === "deposit"
-                        ? "bg-emerald-400/20"
-                        : "bg-amber-400/20"
-                    }`}
-                    style={{
-                      boxShadow:
-                        tx.type === "deposit"
-                          ? "0 0 10px #34d39955"
-                          : "0 0 10px #fbbf2455",
-                    }}
-                  />
-                  <div>
-                    <div className="text-sm text-navy-200">
-                      {tx.type === "deposit"
-                        ? t("transactions.deposit")
-                        : t("transactions.withdrawal")}
-                      {" · "}
-                      {tx.cryptoNetwork || tx.cryptoName || ""}
-                    </div>
-                    <div className="text-xs text-navy-400">
-                      {format(new Date(tx.createdAt), "MMM d, yyyy")}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className={`text-sm font-semibold ${
-                    tx.type === "deposit" ? "text-emerald-400" : "text-amber-400"
-                  }`}>
-                    {tx.type === "deposit" ? "+" : "-"}
-                    {formatCurrency(Math.abs(tx.amount || 0))}
-                  </div>
-                  <div className="text-xs text-navy-400 uppercase">
-                    {tx.status}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-surface-400 border-b border-surface-100">
+                <th className="pb-3 font-medium">{t("transactions.type")}</th>
+                <th className="pb-3 font-medium">
+                  {t("transactions.amount")}
+                </th>
+                <th className="pb-3 font-medium">{t("transactions.date")}</th>
+                <th className="pb-3 font-medium">
+                  {t("transactions.status")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {userTransactions.length > 0 ? (
+                userTransactions.map((tx) => (
+                  <tr
+                    key={tx.id}
+                    className="border-b border-surface-50 last:border-0"
+                  >
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        {tx.type === "deposit" ? (
+                          <ArrowDownRight className="w-4 h-4 text-accent-500" />
+                        ) : (
+                          <ArrowUpRight className="w-4 h-4 text-red-500" />
+                        )}
+                        <span className="font-medium capitalize">
+                          {tx.type}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 font-medium">
+                      {formatCurrency(tx.amount)}
+                    </td>
+                    <td className="py-3 text-surface-500">
+                      {formatDate(tx.createdAt)}
+                    </td>
+                    <td className="py-3">
+                      <span
+                        className={
+                          tx.status === "approved"
+                            ? "badge-success"
+                            : tx.status === "pending"
+                            ? "badge-warning"
+                            : "badge-danger"
+                        }
+                      >
+                        {t(`transactions.${tx.status}`)}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="py-8 text-center text-surface-400"
+                  >
+                    {t("transactions.noTransactions")}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -1,450 +1,243 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import enJson from "@/locales/en-US.json";
-import { useTranslation } from "react-i18next";
-import { useStore } from "@/lib/stores/useStore";
-import AdminLayout from "@/components/layout/AdminLayout";
-import { defaultTranslations } from "@/lib/i18n/defaultTranslations";
-import { motion } from "framer-motion";
-import {
-  Languages as LanguagesIcon,
-  Plus,
-  Pencil,
-  Trash2,
-  Save,
-  X,
-  Search,
-  Check,
-  AlertCircle,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useStore } from "@/lib/store/useStore";
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Edit2, Trash2, X, Globe, Languages, ToggleLeft, ToggleRight, Pencil } from 'lucide-react';
+import { generateId } from "@/lib/utils/helpers";
+import toast from 'react-hot-toast';
+import TranslationEditor from "@/components/TranslationEditor";
+import { defaultTranslations } from "@/lib/i18n/locales/defaultTranslations";
 
-type TranslationMap = Record<string, Record<string, string>>;
-
-export default function AdminLanguagesPage() {
-  return (
-    <AdminLayout>
-      <AdminLanguagesContent />
-    </AdminLayout>
-  );
-}
-
-function flatten(nested: Record<string, unknown>, prefix = ""): Record<string, string> {
-  const flat: Record<string, string> = {};
-  for (const [key, value] of Object.entries(nested)) {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-    if (value && typeof value === "object") {
-      Object.assign(flat, flatten(value as Record<string, unknown>, fullKey));
-    } else if (typeof value === "string") {
-      flat[fullKey] = value;
-    }
-  }
-  return flat;
-}
-
-function AdminLanguagesContent() {
+export default function AdminLanguages() {
   const { t } = useTranslation();
-  const { languages, addLanguage, updateLanguage, updateLanguageTranslations, deleteLanguage } =
-    useStore();
+  const { languages, addLanguage, updateLanguage, deleteLanguage } = useStore();
+  const [showModal, setShowModal] = useState(false);
+  const [editingLang, setEditingLang] = useState<string | null>(null);
+  const [translateLang, setTranslateLang] = useState<{ code: string; name: string } | null>(null);
+  const [form, setForm] = useState({
+    code: '',
+    name: '',
+    nativeName: '',
+    enabled: true,
+  });
 
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editingCode, setEditingCode] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newLang, setNewLang] = useState({ code: "", name: "", nativeName: "" });
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(
-    null
-  );
-
-  const englishFlat = useMemo(() => flatten(enJson), []);
-
-  const notify = (type: "success" | "error", text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
+  const openCreate = () => {
+    setEditingLang(null);
+    setForm({ code: '', name: '', nativeName: '', enabled: true });
+    setShowModal(true);
   };
 
-  const handleCreate = () => {
-    const code = newLang.code.trim();
-    if (!code || !newLang.name.trim()) {
-      notify("error", "Code and name are required");
-      return;
-    }
-    if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(code)) {
-      notify("error", "Code must look like 'fr' or 'fr-FR'");
-      return;
-    }
-    if (languages.some((l) => l.code === code)) {
-      notify("error", `Language ${code} already exists`);
-      return;
-    }
-    addLanguage({
-      code,
-      name: newLang.name.trim(),
-      nativeName: newLang.nativeName.trim() || newLang.name.trim(),
-      enabled: true,
-      translations: {},
-    });
-    notify("success", `Language ${code} created`);
-    setNewLang({ code: "", name: "", nativeName: "" });
-    setCreateOpen(false);
-  };
-
-  const handleDelete = (code: string) => {
-    if (code === "en-US") return;
-    if (!confirm(`Delete language ${code}?`)) return;
-    deleteLanguage(code);
-    notify("success", `Language ${code} deleted`);
-  };
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gold-200">
-            {t("admin.languages")}
-          </h1>
-          <p className="mt-1 text-sm text-navy-300">
-            {t("admin.manageLanguages")}
-          </p>
-        </div>
-        <button onClick={() => setCreateOpen(true)} className="btn-primary">
-          <Plus className="h-4 w-4" aria-hidden />
-          {t("admin.createLanguage")}
-        </button>
-      </div>
-
-      {message && (
-        <div
-          className={`flex items-start gap-3 rounded-xl p-4 text-sm ${
-            message.type === "success"
-              ? "bg-emerald-400/10 border border-emerald-400/20 text-emerald-300"
-              : "bg-red-400/10 border border-red-400/20 text-red-300"
-          }`}
-        >
-          {message.type === "success" ? (
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-          ) : (
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
-          )}
-          <span>{message.text}</span>
-        </div>
-      )}
-
-      {createOpen && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card p-6">
-          <h2 className="mb-5 text-lg font-semibold text-gold-200">
-            {t("admin.createLanguage")}
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-navy-300">
-                {t("admin.languageCode")}
-              </label>
-              <input
-                type="text"
-                value={newLang.code}
-                onChange={(e) => setNewLang((f) => ({ ...f, code: e.target.value }))}
-                className="input-field font-mono"
-                placeholder="fr-FR"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-navy-300">
-                {t("admin.languageName")}
-              </label>
-              <input
-                type="text"
-                value={newLang.name}
-                onChange={(e) => setNewLang((f) => ({ ...f, name: e.target.value }))}
-                className="input-field"
-                placeholder="French"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-navy-300">
-                {t("admin.nativeName")}
-              </label>
-              <input
-                type="text"
-                value={newLang.nativeName}
-                onChange={(e) => setNewLang((f) => ({ ...f, nativeName: e.target.value }))}
-                className="input-field"
-                placeholder="Français"
-              />
-            </div>
-          </div>
-          <div className="mt-5 flex justify-end gap-3">
-            <button onClick={() => setCreateOpen(false)} className="btn-outline">
-              {t("common.cancel")}
-            </button>
-            <button onClick={handleCreate} className="btn-primary">
-              {t("admin.createLanguage")}
-            </button>
-          </div>
-        </motion.div>
-      )}
-
-      <div className="space-y-3">
-        {languages.map((lang, idx) => {
-          const translatedCount = Object.keys(lang.translations).length;
-          const isDefault = lang.code === "en-US";
-          return (
-            <motion.div
-              key={lang.code}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.02, duration: 0.25 }}
-              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[rgba(255,215,120,0.1)] bg-navy-900/70 p-5 backdrop-blur-sm"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-gold-300/20 to-amber-500/20">
-                  <LanguagesIcon className="h-5 w-5 text-gold-300" aria-hidden />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-navy-200">
-                    {lang.name}
-                    <span className="rounded-md bg-navy-800 px-2 py-0.5 font-mono text-xs text-gold-300">
-                      {lang.code}
-                    </span>
-                    {isDefault && (
-                      <span className="rounded-full bg-gold-400/10 px-2 py-0.5 text-xs text-gold-400">
-                        Default
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 text-xs text-navy-400">
-                    {lang.nativeName} · {translatedCount} translations
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setEditingCode(lang.code);
-                    setEditorOpen(true);
-                  }}
-                  className="flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-medium text-navy-300 transition hover:bg-navy-800/60 hover:text-gold-300"
-                >
-                  <Pencil className="h-3.5 w-3.5" aria-hidden />
-                  {t("admin.editLanguage")}
-                </button>
-                {!isDefault && (
-                  <button
-                    onClick={() => handleDelete(lang.code)}
-                    className="flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-medium text-red-400 transition hover:bg-red-400/10"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                    {t("admin.deleteLanguage")}
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {editorOpen && editingCode && (
-        <TranslationEditor languageCode={editingCode} onClose={() => setEditorOpen(false)} />
-      )}
-    </div>
-  );
-}
-
-function TranslationEditor({
-  languageCode,
-  onClose,
-}: {
-  languageCode: string;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const { languages, updateLanguageTranslations } = useStore();
-
-  const lang = languages.find((l) => l.code === languageCode);
-  const savedTranslations = lang?.translations ?? {};
-
-  const nested = useMemo((): TranslationMap => {
-    const map: TranslationMap = {};
-    for (const [section, keys] of Object.entries(defaultTranslations)) {
-      map[section] = {};
-      for (const key of Object.keys(keys)) {
-        const flatKey = `${section}.${key}`;
-        map[section][key] = savedTranslations[flatKey] ?? "";
-      }
-    }
-    return map;
-  }, [savedTranslations]);
-
-  const [formData, setFormData] = useState<TranslationMap>(nested);
-  const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(Object.keys(defaultTranslations).map((s) => [s, s === "landing"]))
-  );
-
-  const englishFlat = useMemo(() => flatten(enJson), []);
-
-  const totalKeys = useMemo(
-    () => Object.values(defaultTranslations).reduce((n, keys) => n + Object.keys(keys).length, 0),
-    []
-  );
-  const filledKeys = useMemo(
-    () =>
-      Object.values(formData).reduce(
-        (n, keys) => n + Object.values(keys).filter((v) => v.trim() !== "").length,
-        0
-      ),
-    [formData]
-  );
-
-  const matchesSearch = (section: string, key: string) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      key.toLowerCase().includes(q) ||
-      (formData[section]?.[key] ?? "").toLowerCase().includes(q) ||
-      (englishFlat[`${section}.${key}`] ?? "").toLowerCase().includes(q)
-    );
+  const openEdit = (code: string) => {
+    const lang = languages.find((l) => l.code === code);
+    if (!lang) return;
+    setEditingLang(code);
+    setForm({ code: lang.code, name: lang.name, nativeName: lang.nativeName, enabled: lang.enabled });
+    setShowModal(true);
   };
 
   const handleSave = () => {
-    const flat: Record<string, string> = {};
-    for (const [section, keys] of Object.entries(formData)) {
-      for (const [key, value] of Object.entries(keys)) {
-        if (value.trim() !== "") {
-          flat[`${section}.${key}`] = value.trim();
-        }
-      }
+    if (!form.code || !form.name || !form.nativeName) {
+      toast.error('All fields are required');
+      return;
     }
-    updateLanguageTranslations(languageCode, flat);
-    notifyEditor("success", "Translations saved");
+
+    if (editingLang) {
+      updateLanguage(editingLang, { name: form.name, nativeName: form.nativeName, enabled: form.enabled });
+      toast.success('Language updated!');
+    } else {
+      if (languages.find((l) => l.code === form.code)) {
+        toast.error('Language code already exists');
+        return;
+      }
+      addLanguage({
+        code: form.code,
+        name: form.name,
+        nativeName: form.nativeName,
+        enabled: form.enabled,
+        translations: {},
+      });
+      toast.success('Language created!');
+    }
+    setShowModal(false);
   };
 
-  const [editorMessage, setEditorMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const notifyEditor = (type: "success" | "error", text: string) => {
-    setEditorMessage({ type, text });
-    setTimeout(() => setEditorMessage(null), 3000);
+  const handleDelete = (code: string) => {
+    if (code === 'en-US') {
+      toast.error('Cannot delete the default language');
+      return;
+    }
+    if (window.confirm(t('admin.confirmDelete'))) {
+      deleteLanguage(code);
+      toast.success('Language deleted!');
+    }
+  };
+
+  const toggleEnabled = (code: string) => {
+    const lang = languages.find((l) => l.code === code);
+    if (lang) {
+      updateLanguage(code, { enabled: !lang.enabled });
+    }
+  };
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 },
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-[rgba(255,215,120,0.14)] bg-navy-900/70 backdrop-blur-sm"
-    >
-      <div className="flex items-center justify-between border-b border-[rgba(255,215,120,0.1)] p-5">
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gold-200">
-            {t("admin.editLanguage")}: {lang?.name ?? languageCode}
-          </h2>
-          <p className="mt-0.5 text-xs text-navy-400">
-            {filledKeys}/{totalKeys} keys translated · empty falls back to English
-          </p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">{t('admin.manageLanguages')}</h1>
+          <p className="text-surface-500 mt-1">{languages.length} languages configured</p>
         </div>
-        <button
-          onClick={onClose}
-          className="rounded-lg p-2 text-navy-400 transition hover:text-gold-300"
-          aria-label="Close editor"
-        >
-          <X className="h-5 w-5" aria-hidden />
-        </button>
-      </div>
+        <motion.button onClick={openCreate} className="btn-primary flex items-center gap-2" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Plus className="w-4 h-4" />
+          {t('admin.createLanguage')}
+        </motion.button>
+      </motion.div>
 
-      {editorMessage && (
-        <div
-          className={`mx-5 mt-4 flex items-start gap-3 rounded-xl p-3 text-sm ${
-            editorMessage.type === "success"
-              ? "bg-emerald-400/10 border border-emerald-400/20 text-emerald-300"
-              : "bg-red-400/10 border border-red-400/20 text-red-300"
-          }`}
-        >
-          {editorMessage.type === "success" ? (
-            <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          ) : (
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          )}
-          <span>{editorMessage.text}</span>
-        </div>
-      )}
-
-      <div className="p-5">
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-400" aria-hidden />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search keys or text..."
-            className="input-field pl-9"
-          />
-        </div>
-
-        <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
-          {Object.entries(formData).map(([section, keys]) => {
-            const visibleKeys = Object.keys(keys).filter((key) =>
-              matchesSearch(section, key)
-            );
-            if (visibleKeys.length === 0) return null;
-            const isOpen = expanded[section];
-            return (
-              <div key={section} className="rounded-xl border border-[rgba(255,215,120,0.08)]">
-                <button
-                  onClick={() => setExpanded((e) => ({ ...e, [section]: !e[section] }))}
-                  className="flex w-full items-center gap-2 rounded-t-xl bg-navy-800/50 px-4 py-3 text-left text-sm font-medium text-navy-200 transition hover:text-gold-300"
-                >
-                  {isOpen ? (
-                    <ChevronDown className="h-4 w-4 text-gold-400" aria-hidden />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-navy-400" aria-hidden />
-                  )}
-                  <span className="capitalize">{section}</span>
-                  <span className="ml-auto text-xs text-navy-400">
-                    {visibleKeys.filter((k) => keys[k]?.trim()).length}/{visibleKeys.length}
-                  </span>
-                </button>
-                {isOpen && (
-                  <div className="space-y-3 p-4">
-                    {visibleKeys.map((key) => (
-                      <div key={key} className="grid gap-2 sm:grid-cols-2">
-                        <div className="rounded-lg bg-navy-800/30 px-3 py-2 text-xs text-navy-400">
-                          <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-navy-500">
-                            EN · {section}.{key}
-                          </div>
-                          {englishFlat[`${section}.${key}`] ?? "—"}
-                        </div>
-                        <div>
-                          <input
-                            type="text"
-                            value={keys[key] ?? ""}
-                            onChange={(e) =>
-                              setFormData((f) => ({
-                                ...f,
-                                [section]: { ...f[section], [key]: e.target.value },
-                              }))
-                            }
-                            className="input-field text-sm"
-                            placeholder="Translation…"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+      {/* Languages Grid */}
+      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {languages.map((lang) => (
+          <motion.div
+            key={lang.code}
+            variants={item}
+            className="card group"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
+                  <Globe className="w-6 h-6 text-primary-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-surface-900">{lang.name}</h3>
+                  <p className="text-sm text-surface-400">{lang.nativeName}</p>
+                </div>
               </div>
-            );
-          })}
-        </div>
+              <button
+                onClick={() => toggleEnabled(lang.code)}
+                className="text-surface-400 hover:text-primary-600 transition-colors"
+              >
+                {lang.enabled ? (
+                  <ToggleRight className="w-8 h-8 text-accent-500" />
+                ) : (
+                  <ToggleLeft className="w-8 h-8" />
+                )}
+              </button>
+            </div>
 
-        <div className="mt-5 flex justify-end gap-3">
-          <button onClick={onClose} className="btn-outline">
-            {t("common.cancel")}
-          </button>
-          <button onClick={handleSave} className="btn-primary">
-            <Save className="h-4 w-4" aria-hidden />
-            {t("common.save")}
-          </button>
+            <div className="flex items-center justify-between text-xs text-surface-400 mb-3">
+              <span className="font-mono bg-surface-100 px-2 py-0.5 rounded">{lang.code}</span>
+              <span className={lang.enabled ? 'text-accent-600 font-medium' : 'text-surface-400'}>
+                {lang.enabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={() => setTranslateLang({ code: lang.code, name: lang.name })} className="flex-1 btn-primary text-xs py-2 flex items-center justify-center gap-1">
+                <Pencil className="w-3 h-3" />
+                Translate
+              </button>
+              <button onClick={() => { setEditingLang(lang.code); setForm({ code: lang.code, name: lang.name, nativeName: lang.nativeName, enabled: lang.enabled }); setShowModal(true); }} className="btn-secondary text-xs py-2 px-3 flex items-center justify-center gap-1">
+                <Edit2 className="w-3 h-3" />
+              </button>
+              {lang.code !== 'en-US' && (
+                <button onClick={() => handleDelete(lang.code)} className="btn-danger text-xs py-2 px-3 flex items-center justify-center gap-1">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Translation Guide */}
+      <motion.div variants={item} className="card">
+        <h3 className="text-lg font-semibold text-surface-900 mb-4 flex items-center gap-2">
+          <Languages className="w-5 h-5 text-primary-600" />
+          Translation Guide
+        </h3>
+        <p className="text-sm text-surface-500 mb-4">
+          Click <strong>Translate</strong> on any language card above to open the full translation editor.
+          You can search keys, fill with English text, import/export JSON, and save directly to i18next.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {Object.keys(defaultTranslations).map((section) => (
+            <div key={section} className="bg-surface-50 rounded-lg px-3 py-2 text-sm">
+              <span className="font-mono text-xs text-surface-600">{section}</span>
+              <span className="text-xs text-surface-400 ml-1">({Object.keys(defaultTranslations[section]).length})</span>
+            </div>
+          ))}
         </div>
-      </div>
+      </motion.div>
+
+      {/* Create/Edit Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="modal-overlay" onClick={() => setShowModal(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-surface-900">
+                    {editingLang ? t('admin.editLanguage') : t('admin.createLanguage')}
+                  </h3>
+                  <button onClick={() => setShowModal(false)} className="text-surface-400 hover:text-surface-600"><X className="w-5 h-5" /></button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-1">{t('admin.languageCode')}</label>
+                    <input
+                      type="text"
+                      className="input-field font-mono"
+                      placeholder="e.g., fr-FR, de-DE, zh-CN"
+                      value={form.code}
+                      onChange={(e) => setForm({ ...form, code: e.target.value })}
+                      disabled={!!editingLang}
+                    />
+                    <p className="text-xs text-surface-400 mt-1">Use BCP 47 format (e.g., fr-FR, de-DE, pt-BR)</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-1">{t('admin.languageName')}</label>
+                    <input type="text" className="input-field" placeholder="e.g., French" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-surface-700 mb-1">{t('admin.nativeName')}</label>
+                    <input type="text" className="input-field" placeholder="e.g., Français" value={form.nativeName} onChange={(e) => setForm({ ...form, nativeName: e.target.value })} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setForm({ ...form, enabled: !form.enabled })} className="text-surface-400">
+                      {form.enabled ? <ToggleRight className="w-8 h-8 text-accent-500" /> : <ToggleLeft className="w-8 h-8" />}
+                    </button>
+                    <span className="text-sm text-surface-600">{form.enabled ? 'Enabled' : 'Disabled'}</span>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setShowModal(false)} className="flex-1 btn-secondary">{t('common.cancel')}</button>
+                  <button onClick={handleSave} className="flex-1 btn-primary">{editingLang ? t('common.save') : t('common.create')}</button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Translation Editor Modal */}
+      <AnimatePresence>
+        {translateLang && (
+          <TranslationEditor
+            languageCode={translateLang.code}
+            languageName={translateLang.name}
+            onClose={() => setTranslateLang(null)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

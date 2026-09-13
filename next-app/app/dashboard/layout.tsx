@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+"use client";
+
 import UserLayout from "@/components/layout/UserLayout";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
   return <UserLayout>{children}</UserLayout>;
 }

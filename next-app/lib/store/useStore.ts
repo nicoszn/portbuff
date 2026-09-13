@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { User, Plan, Investment, Transaction, ChatMessage, DepositAddress, Language } from '@/lib/types';
+import { create } from "zustand";
+import type { User, Plan, Investment, Transaction, ChatMessage, DepositAddress, Language } from "../types";
 import {
   mockUsers,
   mockPlans,
@@ -8,14 +8,19 @@ import {
   mockChatMessages,
   mockDepositAddresses,
   defaultLanguages,
-} from '@/lib/data';
+} from "../mock/data";
 
 interface AppState {
   // Auth
   currentUser: User | null;
   users: User[];
   login: (email: string, password: string) => boolean;
-  signup: (firstName: string, lastName: string, email: string, password: string) => boolean;
+  signup: (
+    firstName: string,
+    lastName: string,
+    email: string,
+    password: string
+  ) => boolean;
   logout: () => void;
   updateProfile: (data: Partial<User>) => void;
 
@@ -51,7 +56,10 @@ interface AppState {
   languages: Language[];
   addLanguage: (lang: Language) => void;
   updateLanguage: (code: string, data: Partial<Language>) => void;
-  updateLanguageTranslations: (code: string, translations: Record<string, string>) => void;
+  updateLanguageTranslations: (
+    code: string,
+    translations: Record<string, string>
+  ) => void;
   deleteLanguage: (code: string) => void;
 
   // User management (admin)
@@ -60,7 +68,8 @@ interface AppState {
   addUser: (user: User) => void;
 }
 
-const loadData = <T>(key: string, fallback: T): T => {
+const loadData = <T,>(key: string, fallback: T): T => {
+  if (typeof window === "undefined") return fallback;
   try {
     const stored = localStorage.getItem(`portbuff-${key}`);
     return stored ? JSON.parse(stored) : fallback;
@@ -70,28 +79,35 @@ const loadData = <T>(key: string, fallback: T): T => {
 };
 
 const saveData = (key: string, data: unknown) => {
+  if (typeof window === "undefined") return;
   localStorage.setItem(`portbuff-${key}`, JSON.stringify(data));
 };
 
 export const useStore = create<AppState>((set, get) => ({
   // Auth
-  currentUser: loadData<User | null>('currentUser', null),
-  users: loadData<User[]>('users', mockUsers),
+  currentUser: loadData<User | null>("currentUser", null),
+  users: loadData<User[]>("users", mockUsers),
 
   login: (email: string, password: string) => {
     const { users } = get();
     const user = users.find(
-      (u) => u.email === email && u.password === password && u.status === 'active'
+      (u) =>
+        u.email === email && u.password === password && u.status === "active"
     );
     if (user) {
       set({ currentUser: user });
-      saveData('currentUser', user);
+      saveData("currentUser", user);
       return true;
     }
     return false;
   },
 
-  signup: (firstName: string, lastName: string, email: string, password: string) => {
+  signup: (
+    firstName: string,
+    lastName: string,
+    email: string,
+    password: string
+  ) => {
     const { users } = get();
     if (users.find((u) => u.email === email)) return false;
     const newUser: User = {
@@ -100,164 +116,183 @@ export const useStore = create<AppState>((set, get) => ({
       lastName,
       email,
       password,
-      role: 'user',
+      role: "user",
       balance: 0,
       totalInvested: 0,
       totalEarned: 0,
       currentProfit: 0,
-      status: 'active',
+      status: "active",
       createdAt: new Date().toISOString(),
     };
     const updated = [...users, newUser];
     set({ users: updated, currentUser: newUser });
-    saveData('users', updated);
-    saveData('currentUser', newUser);
+    saveData("users", updated);
+    saveData("currentUser", newUser);
     return true;
   },
 
   logout: () => {
     set({ currentUser: null });
-    localStorage.removeItem('portbuff-currentUser');
+    localStorage.removeItem("portbuff-currentUser");
   },
 
   updateProfile: (data) => {
     const { currentUser, users } = get();
     if (!currentUser) return;
     const updated = { ...currentUser, ...data };
-    const updatedUsers = users.map((u) => (u.id === currentUser.id ? updated : u));
+    const updatedUsers = users.map((u) =>
+      u.id === currentUser.id ? updated : u
+    );
     set({ currentUser: updated, users: updatedUsers });
-    saveData('currentUser', updated);
-    saveData('users', updatedUsers);
+    saveData("currentUser", updated);
+    saveData("users", updatedUsers);
   },
 
   // Plans
-  plans: loadData<Plan[]>('plans', mockPlans),
+  plans: loadData<Plan[]>("plans", mockPlans),
   addPlan: (plan) => {
     const updated = [...get().plans, plan];
     set({ plans: updated });
-    saveData('plans', updated);
+    saveData("plans", updated);
   },
   updatePlan: (id, data) => {
-    const updated = get().plans.map((p) => (p.id === id ? { ...p, ...data } : p));
+    const updated = get().plans.map((p) =>
+      p.id === id ? { ...p, ...data } : p
+    );
     set({ plans: updated });
-    saveData('plans', updated);
+    saveData("plans", updated);
   },
   deletePlan: (id) => {
     const updated = get().plans.filter((p) => p.id !== id);
     set({ plans: updated });
-    saveData('plans', updated);
+    saveData("plans", updated);
   },
 
   // Investments
-  investments: loadData<Investment[]>('investments', mockInvestments),
+  investments: loadData<Investment[]>("investments", mockInvestments),
   addInvestment: (inv) => {
     const updated = [...get().investments, inv];
     set({ investments: updated });
-    saveData('investments', updated);
+    saveData("investments", updated);
   },
   updateInvestment: (id, data) => {
-    const updated = get().investments.map((i) => (i.id === id ? { ...i, ...data } : i));
+    const updated = get().investments.map((i) =>
+      i.id === id ? { ...i, ...data } : i
+    );
     set({ investments: updated });
-    saveData('investments', updated);
+    saveData("investments", updated);
   },
   deleteInvestment: (id) => {
     const updated = get().investments.filter((i) => i.id !== id);
     set({ investments: updated });
-    saveData('investments', updated);
+    saveData("investments", updated);
   },
 
   // Transactions
-  transactions: loadData<Transaction[]>('transactions', mockTransactions),
+  transactions: loadData<Transaction[]>("transactions", mockTransactions),
   addTransaction: (tx) => {
     const updated = [...get().transactions, tx];
     set({ transactions: updated });
-    saveData('transactions', updated);
+    saveData("transactions", updated);
   },
   updateTransaction: (id, data) => {
-    const updated = get().transactions.map((t) => (t.id === id ? { ...t, ...data } : t));
+    const updated = get().transactions.map((t) =>
+      t.id === id ? { ...t, ...data } : t
+    );
     set({ transactions: updated });
-    saveData('transactions', updated);
+    saveData("transactions", updated);
   },
 
   // Chat
-  chatMessages: loadData<ChatMessage[]>('chatMessages', mockChatMessages),
+  chatMessages: loadData<ChatMessage[]>("chatMessages", mockChatMessages),
   addChatMessage: (msg) => {
     const updated = [...get().chatMessages, msg];
     set({ chatMessages: updated });
-    saveData('chatMessages', updated);
+    saveData("chatMessages", updated);
   },
   markChatRead: (senderId, receiverId) => {
     const updated = get().chatMessages.map((m) =>
-      m.senderId === senderId && m.receiverId === receiverId ? { ...m, read: true } : m
+      m.senderId === senderId && m.receiverId === receiverId
+        ? { ...m, read: true }
+        : m
     );
     set({ chatMessages: updated });
-    saveData('chatMessages', updated);
+    saveData("chatMessages", updated);
   },
 
   // Deposit Addresses
-  depositAddresses: loadData<DepositAddress[]>('depositAddresses', mockDepositAddresses),
+  depositAddresses: loadData<DepositAddress[]>(
+    "depositAddresses",
+    mockDepositAddresses
+  ),
   addDepositAddress: (addr) => {
     const updated = [...get().depositAddresses, addr];
     set({ depositAddresses: updated });
-    saveData('depositAddresses', updated);
+    saveData("depositAddresses", updated);
   },
   updateDepositAddress: (id, data) => {
-    const updated = get().depositAddresses.map((a) => (a.id === id ? { ...a, ...data } : a));
+    const updated = get().depositAddresses.map((a) =>
+      a.id === id ? { ...a, ...data } : a
+    );
     set({ depositAddresses: updated });
-    saveData('depositAddresses', updated);
+    saveData("depositAddresses", updated);
   },
   deleteDepositAddress: (id) => {
     const updated = get().depositAddresses.filter((a) => a.id !== id);
     set({ depositAddresses: updated });
-    saveData('depositAddresses', updated);
+    saveData("depositAddresses", updated);
   },
 
   // Languages
-  languages: loadData<Language[]>('languages', defaultLanguages),
+  languages: loadData<Language[]>("languages", defaultLanguages),
   addLanguage: (lang) => {
     const updated = [...get().languages, lang];
     set({ languages: updated });
-    saveData('languages', updated);
+    saveData("languages", updated);
   },
   updateLanguage: (code, data) => {
-    const updated = get().languages.map((l) => (l.code === code ? { ...l, ...data } : l));
+    const updated = get().languages.map((l) =>
+      l.code === code ? { ...l, ...data } : l
+    );
     set({ languages: updated });
-    saveData('languages', updated);
+    saveData("languages", updated);
   },
   updateLanguageTranslations: (code, translations) => {
     const updated = get().languages.map((l) =>
       l.code === code ? { ...l, translations } : l
     );
     set({ languages: updated });
-    saveData('languages', updated);
+    saveData("languages", updated);
   },
   deleteLanguage: (code) => {
-    if (code === 'en-US') return; // Can't delete default language
+    if (code === "en-US") return;
     const updated = get().languages.filter((l) => l.code !== code);
     set({ languages: updated });
-    saveData('languages', updated);
+    saveData("languages", updated);
   },
 
   // User management
   updateUser: (id, data) => {
-    const updated = get().users.map((u) => (u.id === id ? { ...u, ...data } : u));
+    const updated = get().users.map((u) =>
+      u.id === id ? { ...u, ...data } : u
+    );
     set({ users: updated });
-    saveData('users', updated);
+    saveData("users", updated);
     const { currentUser } = get();
     if (currentUser && currentUser.id === id) {
       const updatedUser = { ...currentUser, ...data };
       set({ currentUser: updatedUser });
-      saveData('currentUser', updatedUser);
+      saveData("currentUser", updatedUser);
     }
   },
   deleteUser: (id) => {
     const updated = get().users.filter((u) => u.id !== id);
     set({ users: updated });
-    saveData('users', updated);
+    saveData("users", updated);
   },
   addUser: (user) => {
     const updated = [...get().users, user];
     set({ users: updated });
-    saveData('users', updated);
+    saveData("users", updated);
   },
 }));

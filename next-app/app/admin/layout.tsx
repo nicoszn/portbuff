@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
-import AdminLayout from "@/components/layout/AdminLayout";
+"use client";
 
-export default function AdminLayoutWrapper({
+import AdminLayoutComponent from "@/components/layout/AdminLayout";
+
+export default function AdminLayout({
   children,
 }: {
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
-  return <AdminLayout>{children}</AdminLayout>;
+  return <AdminLayoutComponent>{children}</AdminLayoutComponent>;
 }
