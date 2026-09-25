@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { defaultTranslations } from "@/lib/i18n/locales/defaultTranslations";
+
 // import enUS from "@/lib/i18n/locales/en-US.json";
 
 // en-US.json is the single source of truth for translatable keys —
