@@ -97,7 +97,7 @@ export default function AdminUsers() {
   };
 
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 w-full">
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">{t('admin.manageUsers')}</h1>
@@ -122,16 +122,25 @@ export default function AdminUsers() {
       </motion.div>
 
       {/* Users Table */}
-      <motion.div variants={item} className="card overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      {/* CRITICAL FIX 1: Removed overflow-hidden. Added bg-white, rounded-2xl, border. */}
+      <motion.div 
+        variants={item} 
+        className="bg-white rounded-2xl border border-surface-100 shadow-sm w-full max-w-full"
+      >
+        {/* CRITICAL FIX 2: Added touch-pan-x, overscroll-x-contain, rounded-2xl. */}
+        <div className="w-full overflow-x-auto relative rounded-2xl touch-pan-x overscroll-x-contain">
+          {/* CRITICAL FIX 3: Added min-w-[800px] to force overflow. */}
+          <table className="w-full text-sm min-w-[800px] border-collapse">
             <thead>
               <tr className="text-left text-surface-400 bg-surface-50 border-b border-surface-100">
-                <th className="px-6 py-3 font-medium">User</th>
-                <th className="px-6 py-3 font-medium hidden sm:table-cell">Balance</th>
-                <th className="px-6 py-3 font-medium hidden md:table-cell">Invested</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Actions</th>
+                {/* CRITICAL FIX 4: Sticky First Column Header */}
+                <th className="px-4 md:px-6 py-3 font-medium sticky left-0 z-20 bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] whitespace-nowrap">
+                  User
+                </th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Balance</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Invested</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Status</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -139,27 +148,32 @@ export default function AdminUsers() {
                 <motion.tr
                   key={user.id}
                   variants={item}
-                  className="border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors"
+                  className="group border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors"
                 >
-                  <td className="px-6 py-4">
+                  {/* CRITICAL FIX 4: Sticky First Column Body */}
+                  <td className="px-4 md:px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] transition-colors whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
+                      <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center shrink-0">
                         <User className="w-4 h-4 text-primary-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-surface-900">{user.firstName} {user.lastName}</p>
-                        <p className="text-xs text-surface-400">{user.email}</p>
+                        <p className="font-medium text-surface-900 truncate max-w-[140px] md:max-w-none">
+                          {user.firstName} {user.lastName}
+                        </p>
+                        <p className="text-xs text-surface-400 truncate max-w-[140px] md:max-w-none">
+                          {user.email}
+                        </p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 hidden sm:table-cell font-medium">{formatCurrency(user.balance)}</td>
-                  <td className="px-6 py-4 hidden md:table-cell text-surface-600">{formatCurrency(user.totalInvested)}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-4 font-medium whitespace-nowrap">{formatCurrency(user.balance)}</td>
+                  <td className="px-4 md:px-6 py-4 text-surface-600 whitespace-nowrap">{formatCurrency(user.totalInvested)}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                     <span className={user.status === 'active' ? 'badge-success' : 'badge-danger'}>
                       {user.status === 'active' ? t('common.active') : t('common.blocked')}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => openEdit(user.id)}
@@ -192,6 +206,12 @@ export default function AdminUsers() {
               ))}
             </tbody>
           </table>
+          
+          {regularUsers.length === 0 && (
+            <div className="p-8 text-center text-surface-400 bg-white">
+              <p>No users found.</p>
+            </div>
+          )}
         </div>
       </motion.div>
 
