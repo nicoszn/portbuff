@@ -19,7 +19,13 @@ import {
   FileJson,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { defaultTranslations } from "@/lib/i18n/locales/defaultTranslations";
+import enUS from "@/lib/i18n/locales/en-US.json";
+
+// en-US.json is the single source of truth for translatable keys —
+// it's the same nested Record<string, Record<string, string>> shape
+// defaultTranslations.ts used to provide, but always in sync with
+// what the app actually renders.
+const defaultTranslations: Record<string, Record<string, string>> = enUS;
 
 interface Props {
   languageCode: string;
