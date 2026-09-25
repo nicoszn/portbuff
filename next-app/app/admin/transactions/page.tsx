@@ -56,18 +56,20 @@ export default function AdminTransactions() {
       </motion.div>
 
       {/* Tabs */}
-      <motion.div variants={item} className="flex gap-2">
+      <motion.div variants={item} className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {(['all', 'deposit', 'withdrawal'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === tab ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-surface-600 border border-surface-200 hover:border-primary-200'
             }`}
           >
             {tab === 'all' ? 'All' : tab === 'deposit' ? t('admin.deposits') : t('admin.withdrawals')}
             {tab !== 'all' && (
-              <span className="ml-2 text-xs bg-white/20 px-1.5 py-0.5 rounded-full">
+              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
+                activeTab === tab ? 'bg-white/20' : 'bg-surface-100 text-surface-600'
+              }`}>
                 {transactions.filter((tx) => tx.type === tab && tx.status === 'pending').length}
               </span>
             )}
@@ -75,53 +77,67 @@ export default function AdminTransactions() {
         ))}
       </motion.div>
 
-      {/* Transactions Table */}
-      <motion.div variants={item} className="card overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      {/* Transactions Table Container */}
+      <motion.div variants={item} className="card p-0 overflow-hidden">
+        {/* The overflow-x-auto allows horizontal scrolling on mobile, 
+            while the sticky classes keep the first column fixed. */}
+        <div className="overflow-x-auto w-full relative">
+          <table className="w-full text-sm min-w-[800px] border-collapse">
             <thead>
               <tr className="text-left text-surface-400 bg-surface-50 border-b border-surface-100">
-                <th className="px-6 py-3 font-medium">User</th>
-                <th className="px-6 py-3 font-medium">Type</th>
-                <th className="px-6 py-3 font-medium">Amount</th>
-                <th className="px-6 py-3 font-medium hidden sm:table-cell">Network</th>
-                <th className="px-6 py-3 font-medium">Date</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Actions</th>
+                {/* Sticky Header Cell */}
+                <th className="px-4 md:px-6 py-3 font-medium sticky left-0 z-20 bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                  User
+                </th>
+                <th className="px-4 md:px-6 py-3 font-medium">Type</th>
+                <th className="px-4 md:px-6 py-3 font-medium">Amount</th>
+                <th className="px-4 md:px-6 py-3 font-medium hidden sm:table-cell">Network</th>
+                <th className="px-4 md:px-6 py-3 font-medium">Date</th>
+                <th className="px-4 md:px-6 py-3 font-medium">Status</th>
+                <th className="px-4 md:px-6 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((tx) => {
                 const user = users.find((u) => u.id === tx.userId);
                 return (
-                  <motion.tr key={tx.id} variants={item} className="border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-surface-900">{user?.firstName} {user?.lastName}</p>
-                      <p className="text-xs text-surface-400">{user?.email}</p>
+                  <motion.tr 
+                    key={tx.id} 
+                    variants={item} 
+                    className="group border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors"
+                  >
+                    {/* Sticky Body Cell */}
+                    <td className="px-4 md:px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] transition-colors">
+                      <p className="font-medium text-surface-900 truncate max-w-[140px] md:max-w-none">
+                        {user?.firstName} {user?.lastName}
+                      </p>
+                      <p className="text-xs text-surface-400 truncate max-w-[140px] md:max-w-none">
+                        {user?.email}
+                      </p>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 md:px-6 py-4">
                       <div className="flex items-center gap-1">
                         {tx.type === 'deposit' ? (
-                          <ArrowDownRight className="w-4 h-4 text-accent-500" />
+                          <ArrowDownRight className="w-4 h-4 text-accent-500 shrink-0" />
                         ) : (
-                          <ArrowUpRight className="w-4 h-4 text-red-500" />
+                          <ArrowUpRight className="w-4 h-4 text-red-500 shrink-0" />
                         )}
                         <span className="capitalize font-medium">{tx.type}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-semibold">{formatCurrency(tx.amount)}</td>
-                    <td className="px-6 py-4 hidden sm:table-cell text-surface-500">{tx.cryptoNetwork}</td>
-                    <td className="px-6 py-4 text-surface-500">{formatDate(tx.createdAt)}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 md:px-6 py-4 font-semibold">{formatCurrency(tx.amount)}</td>
+                    <td className="px-4 md:px-6 py-4 hidden sm:table-cell text-surface-500">{tx.cryptoNetwork}</td>
+                    <td className="px-4 md:px-6 py-4 text-surface-500 whitespace-nowrap">{formatDate(tx.createdAt)}</td>
+                    <td className="px-4 md:px-6 py-4">
                       <span className={
                         tx.status === 'approved' ? 'badge-success' :
                         tx.status === 'pending' ? 'badge-warning' : 'badge-danger'
                       }>
                         {tx.status}
                       </span>
-                      {tx.adminNote && <p className="text-xs text-surface-400 mt-1">{tx.adminNote}</p>}
+                      {tx.adminNote && <p className="text-xs text-surface-400 mt-1 max-w-[120px] truncate">{tx.adminNote}</p>}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 md:px-6 py-4">
                       {tx.status === 'pending' && (
                         <div className="flex items-center gap-1">
                           <button
@@ -146,6 +162,12 @@ export default function AdminTransactions() {
               })}
             </tbody>
           </table>
+          
+          {filtered.length === 0 && (
+            <div className="p-8 text-center text-surface-400 bg-white">
+              <p>No transactions found for this filter.</p>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
