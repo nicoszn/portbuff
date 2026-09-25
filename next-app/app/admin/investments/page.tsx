@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStore } from "@/lib/store/useStore";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Trash2, X, TrendingUp } from 'lucide-react';
-import { formatCurrency, formatDate, generateId } from "@/lib/utils/helpers";
+import { Edit2, Trash2, X } from 'lucide-react';
+import { formatCurrency, formatDate } from "@/lib/utils/helpers";
 import toast from 'react-hot-toast';
 
 export default function AdminInvestments() {
@@ -57,45 +57,59 @@ export default function AdminInvestments() {
   };
 
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 w-full">
       <motion.div variants={item}>
         <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">{t('admin.investments')}</h1>
         <p className="text-surface-500 mt-1">{investments.length} investments total</p>
       </motion.div>
 
-      <motion.div variants={item} className="card overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      {/* CRITICAL FIX 1: Removed overflow-hidden. Added bg-white, rounded-2xl, border. */}
+      <motion.div 
+        variants={item} 
+        className="bg-white rounded-2xl border border-surface-100 shadow-sm w-full max-w-full"
+      >
+        {/* CRITICAL FIX 2: Added touch-pan-x, overscroll-x-contain, rounded-2xl. */}
+        <div className="w-full overflow-x-auto relative rounded-2xl touch-pan-x overscroll-x-contain">
+          {/* CRITICAL FIX 3: Added min-w-[880px] to force overflow. */}
+          <table className="w-full text-sm min-w-[880px] border-collapse">
             <thead>
               <tr className="text-left text-surface-400 bg-surface-50 border-b border-surface-100">
-                <th className="px-6 py-3 font-medium">User</th>
-                <th className="px-6 py-3 font-medium">Plan</th>
-                <th className="px-6 py-3 font-medium">Amount</th>
-                <th className="px-6 py-3 font-medium hidden sm:table-cell">Daily %</th>
-                <th className="px-6 py-3 font-medium hidden md:table-cell">Dates</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Actions</th>
+                {/* CRITICAL FIX 4: Sticky First Column Header */}
+                <th className="px-4 md:px-6 py-3 font-medium sticky left-0 z-20 bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] whitespace-nowrap">
+                  User
+                </th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Plan</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Amount</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Daily %</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Dates</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Status</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
               {investmentsWithDetails.map((inv) => (
-                <tr key={inv.id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-surface-900">{inv.user?.firstName} {inv.user?.lastName}</p>
-                    <p className="text-xs text-surface-400">{inv.user?.email}</p>
+                <tr key={inv.id} className="group border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors">
+                  {/* CRITICAL FIX 4: Sticky First Column Body */}
+                  <td className="px-4 md:px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] transition-colors whitespace-nowrap">
+                    <p className="font-medium text-surface-900 truncate max-w-[140px] md:max-w-none">
+                      {inv.user?.firstName} {inv.user?.lastName}
+                    </p>
+                    <p className="text-xs text-surface-400 truncate max-w-[140px] md:max-w-none">
+                      {inv.user?.email}
+                    </p>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <span>{inv.plan?.icon}</span>
                       <span className="font-medium">{inv.plan?.name}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-semibold">{formatCurrency(inv.amount)}</td>
-                  <td className="px-6 py-4 hidden sm:table-cell text-accent-600 font-medium">{inv.dailyPercentage}%</td>
-                  <td className="px-6 py-4 hidden md:table-cell text-surface-500 text-xs">
+                  <td className="px-4 md:px-6 py-4 font-semibold whitespace-nowrap">{formatCurrency(inv.amount)}</td>
+                  <td className="px-4 md:px-6 py-4 text-accent-600 font-medium whitespace-nowrap">{inv.dailyPercentage}%</td>
+                  <td className="px-4 md:px-6 py-4 text-surface-500 text-xs whitespace-nowrap">
                     {formatDate(inv.startDate)} - {formatDate(inv.endDate)}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                     <span className={
                       inv.status === 'active' ? 'badge-success' :
                       inv.status === 'completed' ? 'badge-info' : 'badge-danger'
@@ -103,7 +117,7 @@ export default function AdminInvestments() {
                       {inv.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <button onClick={() => openEdit(inv.id)} className="p-1.5 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                         <Edit2 className="w-4 h-4" />
@@ -117,6 +131,12 @@ export default function AdminInvestments() {
               ))}
             </tbody>
           </table>
+          
+          {investmentsWithDetails.length === 0 && (
+            <div className="p-8 text-center text-surface-400 bg-white">
+              <p>No investments found.</p>
+            </div>
+          )}
         </div>
       </motion.div>
 
