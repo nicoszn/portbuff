@@ -80,7 +80,7 @@ function autoDetectAndSet(): string {
   return "en-US";
 }
 
-// ── Init (client-side only) ──
+// ── Init (client-side only, runs synchronously at module load) ──
 let initialized = false;
 
 export function initI18n() {
@@ -103,6 +103,12 @@ export function initI18n() {
 
   registerAllSavedTranslations();
 }
+
+// Run immediately on import (client only — no-ops during SSR since
+// `typeof window === "undefined"` short-circuits above). This ensures
+// i18next is initialized before any component's first render calls
+// `t()`, instead of waiting for a post-mount useEffect to fire.
+initI18n();
 
 // ── Public API ──
 
