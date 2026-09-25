@@ -8,7 +8,11 @@ import { Plus, Edit2, Trash2, X, Globe, Languages, ToggleLeft, ToggleRight, Penc
 import { generateId } from "@/lib/utils/helpers";
 import toast from 'react-hot-toast';
 import TranslationEditor from "@/components/TranslationEditor";
-import { defaultTranslations } from "@/lib/i18n/locales/defaultTranslations";
+import enUS from "@/lib/i18n/locales/en-US.json";
+
+// en-US.json is the single source of truth for translatable keys —
+// see TranslationEditor.tsx for the same pattern.
+const defaultTranslations: Record<string, Record<string, string>> = enUS;
 
 export default function AdminLanguages() {
   const { t } = useTranslation();
