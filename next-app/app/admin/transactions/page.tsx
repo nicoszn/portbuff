@@ -49,7 +49,7 @@ export default function AdminTransactions() {
   };
 
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 w-full">
       <motion.div variants={item}>
         <h1 className="text-2xl lg:text-3xl font-bold text-surface-900">{t('admin.transactions')}</h1>
         <p className="text-surface-500 mt-1">Manage deposits and withdrawals</p>
@@ -78,23 +78,27 @@ export default function AdminTransactions() {
       </motion.div>
 
       {/* Transactions Table Container */}
-      <motion.div variants={item} className="card p-0 overflow-hidden">
-        {/* The overflow-x-auto allows horizontal scrolling on mobile, 
-            while the sticky classes keep the first column fixed. */}
-        <div className="overflow-x-auto w-full relative">
+      {/* CRITICAL FIX 1: Removed 'overflow-hidden' from this wrapper. It breaks position: sticky and touch scrolling. */}
+      <motion.div 
+        variants={item} 
+        className="bg-white rounded-2xl border border-surface-100 shadow-sm w-full max-w-full"
+      >
+        {/* CRITICAL FIX 2: Added 'touch-pan-x' and 'overscroll-x-contain' to enable smooth swipe scrolling on mobile. 
+            Added 'rounded-2xl' here so the corners remain rounded without needing overflow-hidden on the parent. */}
+        <div className="overflow-x-auto w-full relative rounded-2xl touch-pan-x overscroll-x-contain">
           <table className="w-full text-sm min-w-[800px] border-collapse">
             <thead>
               <tr className="text-left text-surface-400 bg-surface-50 border-b border-surface-100">
                 {/* Sticky Header Cell */}
-                <th className="px-4 md:px-6 py-3 font-medium sticky left-0 z-20 bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                <th className="px-4 md:px-6 py-3 font-medium sticky left-0 z-20 bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] whitespace-nowrap">
                   User
                 </th>
-                <th className="px-4 md:px-6 py-3 font-medium">Type</th>
-                <th className="px-4 md:px-6 py-3 font-medium">Amount</th>
-                <th className="px-4 md:px-6 py-3 font-medium hidden sm:table-cell">Network</th>
-                <th className="px-4 md:px-6 py-3 font-medium">Date</th>
-                <th className="px-4 md:px-6 py-3 font-medium">Status</th>
-                <th className="px-4 md:px-6 py-3 font-medium">Actions</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Type</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Amount</th>
+                <th className="px-4 md:px-6 py-3 font-medium hidden sm:table-cell whitespace-nowrap">Network</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Date</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Status</th>
+                <th className="px-4 md:px-6 py-3 font-medium whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -107,7 +111,7 @@ export default function AdminTransactions() {
                     className="group border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors"
                   >
                     {/* Sticky Body Cell */}
-                    <td className="px-4 md:px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] transition-colors">
+                    <td className="px-4 md:px-6 py-4 sticky left-0 z-10 bg-white group-hover:bg-surface-50 border-r border-surface-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] transition-colors whitespace-nowrap">
                       <p className="font-medium text-surface-900 truncate max-w-[140px] md:max-w-none">
                         {user?.firstName} {user?.lastName}
                       </p>
@@ -115,7 +119,7 @@ export default function AdminTransactions() {
                         {user?.email}
                       </p>
                     </td>
-                    <td className="px-4 md:px-6 py-4">
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-1">
                         {tx.type === 'deposit' ? (
                           <ArrowDownRight className="w-4 h-4 text-accent-500 shrink-0" />
@@ -125,10 +129,10 @@ export default function AdminTransactions() {
                         <span className="capitalize font-medium">{tx.type}</span>
                       </div>
                     </td>
-                    <td className="px-4 md:px-6 py-4 font-semibold">{formatCurrency(tx.amount)}</td>
-                    <td className="px-4 md:px-6 py-4 hidden sm:table-cell text-surface-500">{tx.cryptoNetwork}</td>
+                    <td className="px-4 md:px-6 py-4 font-semibold whitespace-nowrap">{formatCurrency(tx.amount)}</td>
+                    <td className="px-4 md:px-6 py-4 hidden sm:table-cell text-surface-500 whitespace-nowrap">{tx.cryptoNetwork}</td>
                     <td className="px-4 md:px-6 py-4 text-surface-500 whitespace-nowrap">{formatDate(tx.createdAt)}</td>
-                    <td className="px-4 md:px-6 py-4">
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                       <span className={
                         tx.status === 'approved' ? 'badge-success' :
                         tx.status === 'pending' ? 'badge-warning' : 'badge-danger'
@@ -137,7 +141,7 @@ export default function AdminTransactions() {
                       </span>
                       {tx.adminNote && <p className="text-xs text-surface-400 mt-1 max-w-[120px] truncate">{tx.adminNote}</p>}
                     </td>
-                    <td className="px-4 md:px-6 py-4">
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                       {tx.status === 'pending' && (
                         <div className="flex items-center gap-1">
                           <button
