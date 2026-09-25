@@ -75,17 +75,17 @@ export default function AdminTransactions() {
 
       {/* Transactions Table */}
       <motion.div variants={item} className="card overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[880px] text-sm">
             <thead>
               <tr className="text-left text-surface-400 bg-surface-50 border-b border-surface-100">
-                <th className="px-6 py-3 font-medium">User</th>
-                <th className="px-6 py-3 font-medium">Type</th>
-                <th className="px-6 py-3 font-medium">Amount</th>
-                <th className="px-6 py-3 font-medium hidden sm:table-cell">Network</th>
-                <th className="px-6 py-3 font-medium">Date</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Actions</th>
+                <th className="px-6 py-3 font-medium whitespace-nowrap">User</th>
+                <th className="px-6 py-3 font-medium whitespace-nowrap">Type</th>
+                <th className="px-6 py-3 font-medium whitespace-nowrap">Amount</th>
+                <th className="px-6 py-3 font-medium whitespace-nowrap">Network</th>
+                <th className="px-6 py-3 font-medium whitespace-nowrap">Date</th>
+                <th className="px-6 py-3 font-medium whitespace-nowrap">Status</th>
+                <th className="px-6 py-3 font-medium whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -93,11 +93,11 @@ export default function AdminTransactions() {
                 const user = users.find((u) => u.id === tx.userId);
                 return (
                   <motion.tr key={tx.id} variants={item} className="border-b border-surface-50 last:border-0 hover:bg-surface-50 transition-colors">
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <p className="font-medium text-surface-900">{user?.firstName} {user?.lastName}</p>
                       <p className="text-xs text-surface-400">{user?.email}</p>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-1">
                         {tx.type === 'deposit' ? (
                           <ArrowDownRight className="w-4 h-4 text-accent-500" />
@@ -107,10 +107,10 @@ export default function AdminTransactions() {
                         <span className="capitalize font-medium">{tx.type}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-semibold">{formatCurrency(tx.amount)}</td>
-                    <td className="px-6 py-4 hidden sm:table-cell text-surface-500">{tx.cryptoNetwork}</td>
-                    <td className="px-6 py-4 text-surface-500">{formatDate(tx.createdAt)}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 font-semibold whitespace-nowrap">{formatCurrency(tx.amount)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-surface-500">{tx.cryptoNetwork}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-surface-500">{formatDate(tx.createdAt)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={
                         tx.status === 'approved' ? 'badge-success' :
                         tx.status === 'pending' ? 'badge-warning' : 'badge-danger'
