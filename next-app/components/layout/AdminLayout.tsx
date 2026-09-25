@@ -177,7 +177,7 @@ export default function AdminLayoutComponent({
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-64 min-h-screen">
+      <div className="flex-1 min-w-0 lg:ml-64 min-h-screen">
         {/* Mobile Header */}
         <div className="lg:hidden sticky top-0 z-30 bg-white border-b border-surface-100 px-4 py-3 flex items-center justify-between">
           <button
